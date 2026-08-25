@@ -16,6 +16,10 @@ export interface SiteConfig {
   slug: string;
   name: string;
   theme: Theme;
+  seo?: {
+    title?: string;
+    description?: string;
+  };
 }
 
 interface SiteContextType {
