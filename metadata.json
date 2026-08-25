@@ -1,6 +1,6 @@
 {
-  "name": "MERN Stack Starter",
-  "description": "A simple frontend and backend application using MongoDB, Express, React, and Node.js.",
+  "name": "OmniCMS",
+  "description": "A Multi-Tenant MERN Content Management System with dynamic theming and isolated data architecture.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

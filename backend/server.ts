@@ -3,6 +3,7 @@ import path from 'path';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 
 // Load environment variables from the root .env file in monorepo dev environments
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
@@ -16,65 +17,216 @@ app.use(express.json());
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI;
-const DataSchema = new mongoose.Schema({
-  heading: { type: String, required: true },
-  content: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now }
-});
 
-let DataModel: mongoose.Model<any>;
-const inMemoryData: { _id: string, heading: string, content: string, createdAt: Date }[] = [];
-
-if (MONGODB_URI) {
-  mongoose.connect(MONGODB_URI)
-    .then(() => {
-      console.log('Connected to MongoDB');
-      DataModel = mongoose.model('Data', DataSchema);
-    })
-    .catch(err => console.error('MongoDB connection error:', err));
-} else {
-  console.warn('MONGODB_URI not found. Data will be saved in memory only (cleared on restart).');
+async function connectDB() {
+  if (MONGODB_URI) {
+    try {
+      await mongoose.connect(MONGODB_URI);
+      console.log('✅ Connected to MongoDB');
+      return;
+    } catch (err) {
+      console.error('❌ Failed to connect to MONGODB_URI (possibly an IP whitelist issue). Falling back to In-Memory database.', err.message);
+    }
+  }
+  
+  console.warn('⚠️ Starting MongoMemoryServer for development.');
+  const mongoServer = await MongoMemoryServer.create();
+  await mongoose.connect(mongoServer.getUri());
+  console.log('✅ Connected to In-Memory MongoDB');
 }
+connectDB().catch(err => console.error('❌ MongoDB connection error:', err));
 
-// API Routes
-app.get('/api/data', async (req, res) => {
+// ------------------------------------------------------------------
+// Mongoose Schemas & Models
+// ------------------------------------------------------------------
+
+const SiteSchema = new mongoose.Schema({
+  slug: { type: String, required: true, unique: true, index: true },
+  name: { type: String, required: true },
+  theme: {
+    primary: { type: String, default: '#4f46e5' },
+    secondary: { type: String, default: '#f8fafc' },
+    accent: { type: String, default: '#fbbf24' },
+    bg: { type: String, default: '#ffffff' },
+    surface: { type: String, default: '#f1f5f9' },
+    textMain: { type: String, default: '#0f172a' },
+    textMuted: { type: String, default: '#64748b' },
+  },
+  seo: {
+    title: { type: String },
+    description: { type: String }
+  }
+}, { timestamps: true });
+
+const CategorySchema = new mongoose.Schema({
+  siteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Site', required: true, index: true },
+  slug: { type: String, required: true },
+  name: { type: String, required: true }
+}, { timestamps: true });
+
+CategorySchema.index({ siteId: 1, slug: 1 }, { unique: true });
+
+const PostSchema = new mongoose.Schema({
+  siteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Site', required: true, index: true },
+  categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
+  slug: { type: String, required: true },
+  title: { type: String, required: true },
+  content: { type: String, required: true },
+}, { timestamps: true });
+
+PostSchema.index({ siteId: 1, slug: 1 }, { unique: true });
+
+const Site = mongoose.model('Site', SiteSchema);
+const Category = mongoose.model('Category', CategorySchema);
+const Post = mongoose.model('Post', PostSchema);
+
+// ------------------------------------------------------------------
+// Public API Routes (Tenant-scoped)
+// ------------------------------------------------------------------
+
+// Get Site Config
+app.get('/api/sites/:siteSlug', async (req, res) => {
   try {
-    if (DataModel) {
-      const data = await DataModel.find().sort({ createdAt: -1 }).limit(100);
-      res.json(data);
-    } else {
-      res.json(inMemoryData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
-    }
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch data' });
+    const site = await Site.findOne({ slug: req.params.siteSlug });
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+    res.json(site);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-app.post('/api/data', async (req, res) => {
+// Get Categories for a Site
+app.get('/api/sites/:siteSlug/categories', async (req, res) => {
   try {
-    const { heading, content } = req.body;
-    if (!heading || !content) return res.status(400).json({ error: 'Heading and content are required' });
-
-    if (DataModel) {
-      const newData = new DataModel({ heading, content });
-      await newData.save();
-      res.status(201).json(newData);
-    } else {
-      const newData = {
-        _id: Math.random().toString(36).substring(7),
-        heading,
-        content,
-        createdAt: new Date()
-      };
-      inMemoryData.push(newData);
-      res.status(201).json(newData);
-    }
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to save data' });
+    const site = await Site.findOne({ slug: req.params.siteSlug });
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+    
+    const categories = await Category.find({ siteId: site._id }).sort({ name: 1 });
+    res.json(categories);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Serve the Admin Dashboard UI statically
+// Get Posts for a Site
+app.get('/api/sites/:siteSlug/posts', async (req, res) => {
+  try {
+    const site = await Site.findOne({ slug: req.params.siteSlug });
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+    
+    // Optional category filter
+    const query: any = { siteId: site._id };
+    if (req.query.category) {
+      const category = await Category.findOne({ siteId: site._id, slug: req.query.category as string });
+      if (category) query.categoryId = category._id;
+    }
+    
+    const posts = await Post.find(query).sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get a specific Post for a Site
+app.get('/api/sites/:siteSlug/posts/:postSlug', async (req, res) => {
+  try {
+    const site = await Site.findOne({ slug: req.params.siteSlug });
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+    
+    const post = await Post.findOne({ siteId: site._id, slug: req.params.postSlug });
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    
+    res.json(post);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ------------------------------------------------------------------
+// Admin API Routes (For CMS)
+// ------------------------------------------------------------------
+
+// Get all sites (Admin)
+app.get('/api/admin/sites', async (req, res) => {
+  try {
+    const sites = await Site.find().sort({ name: 1 });
+    res.json(sites);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create or update a site
+app.post('/api/admin/sites', async (req, res) => {
+  try {
+    const { slug, name, theme, seo } = req.body;
+    if (!slug || !name) return res.status(400).json({ error: 'Slug and name are required' });
+    
+    const site = await Site.findOneAndUpdate(
+      { slug },
+      { name, theme, seo },
+      { new: true, upsert: true }
+    );
+    res.json(site);
+  } catch (err) {
+    console.error("Error saving site:", err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create a category
+app.post('/api/admin/categories', async (req, res) => {
+  try {
+    const { siteSlug, name, slug } = req.body;
+    if (!siteSlug || !name || !slug) return res.status(400).json({ error: 'Missing required fields' });
+    
+    const site = await Site.findOne({ slug: siteSlug });
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+    
+    const category = new Category({ siteId: site._id, name, slug });
+    await category.save();
+    res.status(201).json(category);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create a post
+app.post('/api/admin/posts', async (req, res) => {
+  try {
+    const { siteSlug, title, slug, content, categorySlug } = req.body;
+    if (!siteSlug || !title || !slug || !content) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    const site = await Site.findOne({ slug: siteSlug });
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+    
+    let categoryId = null;
+    if (categorySlug) {
+      const category = await Category.findOne({ siteId: site._id, slug: categorySlug });
+      if (category) categoryId = category._id;
+    }
+    
+    const post = new Post({
+      siteId: site._id,
+      categoryId,
+      title,
+      slug,
+      content
+    });
+    await post.save();
+    res.status(201).json(post);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ------------------------------------------------------------------
+// Serve Admin Dashboard
+// ------------------------------------------------------------------
 app.use(express.static(path.join(process.cwd(), 'public')));
 app.get('*', (req, res) => {
   res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
