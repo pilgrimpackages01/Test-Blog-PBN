@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { SiteProvider, useSite } from './SiteContext';
 import { BookOpen, Loader2 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
@@ -130,18 +130,20 @@ const BlogFeed = () => {
 };
 
 export default function App() {
+  const siteView = (
+    <SiteProvider>
+      <SiteLayout>
+        <Routes>
+          <Route path="/" element={<BlogFeed />} />
+        </Routes>
+      </SiteLayout>
+    </SiteProvider>
+  );
+
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/travel" replace />} />
-      <Route path="/:siteSlug/*" element={
-        <SiteProvider>
-          <SiteLayout>
-            <Routes>
-              <Route path="/" element={<BlogFeed />} />
-            </Routes>
-          </SiteLayout>
-        </SiteProvider>
-      } />
+      <Route path="/" element={siteView} />
+      <Route path="/:siteSlug/*" element={siteView} />
     </Routes>
   );
 }

@@ -43,6 +43,7 @@ connectDB().catch(err => console.error('❌ MongoDB connection error:', err));
 const SiteSchema = new mongoose.Schema({
   slug: { type: String, required: true, unique: true, index: true },
   name: { type: String, required: true },
+  domains: { type: [String], default: [] },
   theme: {
     primary: { type: String, default: '#4f46e5' },
     secondary: { type: String, default: '#f8fafc' },
@@ -83,6 +84,20 @@ const Post = mongoose.model('Post', PostSchema);
 // ------------------------------------------------------------------
 // Public API Routes (Tenant-scoped)
 // ------------------------------------------------------------------
+
+// Resolve a tenant from the browser's hostname for custom-domain deployments.
+app.get('/api/sites/resolve', async (req, res) => {
+  try {
+    const hostname = String(req.query.hostname || '').trim().toLowerCase();
+    if (!hostname) return res.status(400).json({ error: 'Hostname is required' });
+
+    const site = await Site.findOne({ domains: hostname });
+    if (!site) return res.status(404).json({ error: 'No site is connected to this domain' });
+    res.json(site);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // Get Site Config
 app.get('/api/sites/:siteSlug', async (req, res) => {
@@ -157,15 +172,35 @@ app.get('/api/admin/sites', async (req, res) => {
   }
 });
 
+// Get posts for the admin dashboard, optionally limited to one site.
+app.get('/api/admin/posts', async (req, res) => {
+  try {
+    const query: any = {};
+    if (req.query.siteSlug) {
+      const site = await Site.findOne({ slug: req.query.siteSlug as string });
+      if (!site) return res.status(404).json({ error: 'Site not found' });
+      query.siteId = site._id;
+    }
+    const posts = await Post.find(query).populate('siteId', 'name slug').sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Create or update a site
 app.post('/api/admin/sites', async (req, res) => {
   try {
-    const { slug, name, theme, seo } = req.body;
+    const { slug, name, domains = [], theme, seo } = req.body;
     if (!slug || !name) return res.status(400).json({ error: 'Slug and name are required' });
+
+    const normalizedDomains = [...new Set(domains
+      .map((domain: string) => domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, ''))
+      .filter(Boolean))];
     
     const site = await Site.findOneAndUpdate(
       { slug },
-      { name, theme, seo },
+      { name, domains: normalizedDomains, theme, seo },
       { new: true, upsert: true }
     );
     res.json(site);

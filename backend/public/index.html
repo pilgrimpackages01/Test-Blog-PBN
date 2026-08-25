@@ -63,7 +63,36 @@
     </header>
     
     <main class="flex-1 flex overflow-y-auto justify-center items-start p-4 md:p-8">
-      <section class="w-full max-w-[800px] bg-surface border border-border p-8 rounded-3xl shadow-xl flex flex-col">
+      <section class="w-full max-w-[980px] grid lg:grid-cols-[0.8fr_1.2fr] gap-6">
+        <div class="bg-surface border border-border p-8 rounded-3xl shadow-xl flex flex-col h-fit">
+          <div class="mb-8">
+            <h2 class="text-2xl font-black text-text-main mb-1 italic">Connect a site</h2>
+            <p class="text-text-muted text-sm">Map one or more Cloudflare domains to a blog.</p>
+          </div>
+          <form id="siteForm" class="space-y-5">
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Existing site</label>
+              <select id="managedSite" class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none font-bold text-text-main"></select>
+            </div>
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Site name</label>
+              <input id="siteName" required class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none text-text-main" placeholder="Travel Journal" />
+            </div>
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">URL slug</label>
+              <input id="siteSlug" required class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none text-text-main" placeholder="travel" />
+            </div>
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Connected domains</label>
+              <textarea id="siteDomains" rows="3" class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none text-text-main" placeholder="travel.example.com&#10;www.travel.example.com"></textarea>
+              <p class="text-xs text-text-muted">One domain per line. Do not include http://.</p>
+            </div>
+            <button type="submit" class="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-colors">Save site connection</button>
+            <div id="siteMessage" class="text-sm font-medium text-center hidden"></div>
+          </form>
+        </div>
+
+        <div class="bg-surface border border-border p-8 rounded-3xl shadow-xl flex flex-col">
         <div class="mb-8 flex justify-between items-end">
           <div>
             <h2 class="text-2xl font-black text-text-main mb-1 italic">New Blog Post</h2>
@@ -105,6 +134,14 @@
           
           <div id="message" class="text-sm font-medium text-center hidden"></div>
         </form>
+        <div class="mt-10 pt-8 border-t border-border">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-black text-text-main">Posted blogs</h3>
+            <button id="refreshPosts" type="button" class="text-xs font-bold uppercase tracking-wider text-primary">Refresh</button>
+          </div>
+          <div id="postsList" class="space-y-3 text-sm"><p class="text-text-muted">Loading posts...</p></div>
+        </div>
+        </div>
       </section>
     </main>
 
@@ -124,23 +161,74 @@
       });
 
       // Load sites on mount
+      let sites = [];
       async function loadSites() {
         try {
           const res = await fetch('/api/admin/sites');
-          const sites = await res.json();
+          sites = await res.json();
           const select = document.getElementById('siteSelect');
+          const managed = document.getElementById('managedSite');
           select.innerHTML = '<option value="" disabled selected>Select a site...</option>';
+          managed.innerHTML = '<option value="new">Create new site...</option>';
           sites.forEach(site => {
             const opt = document.createElement('option');
             opt.value = site.slug;
             opt.textContent = `${site.name} (/${site.slug})`;
             select.appendChild(opt);
+            const managedOpt = opt.cloneNode(true);
+            managed.appendChild(managedOpt);
           });
+          managed.dispatchEvent(new Event('change'));
+          loadPosts();
         } catch (err) {
           document.getElementById('siteSelect').innerHTML = '<option value="" disabled selected>Error loading sites</option>';
         }
       }
       loadSites();
+
+      function fillSiteForm() {
+        const selected = sites.find(site => site.slug === document.getElementById('managedSite').value);
+        document.getElementById('siteName').value = selected ? selected.name : '';
+        document.getElementById('siteSlug').value = selected ? selected.slug : '';
+        document.getElementById('siteSlug').readOnly = Boolean(selected);
+        document.getElementById('siteDomains').value = selected ? (selected.domains || []).join('\n') : '';
+      }
+      document.getElementById('managedSite').addEventListener('change', fillSiteForm);
+      document.getElementById('siteForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const message = document.getElementById('siteMessage');
+        try {
+          const response = await fetch('/api/admin/sites', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: document.getElementById('siteName').value.trim(),
+              slug: document.getElementById('siteSlug').value.trim().toLowerCase(),
+              domains: document.getElementById('siteDomains').value.split('\n')
+            })
+          });
+          if (!response.ok) throw new Error('Save failed');
+          message.textContent = 'Site connection saved.';
+          message.className = 'text-sm font-medium text-center text-emerald-600 block';
+          await loadSites();
+        } catch (error) {
+          message.textContent = 'Could not save site connection.';
+          message.className = 'text-sm font-medium text-center text-red-600 block';
+        }
+      });
+
+      async function loadPosts() {
+        const list = document.getElementById('postsList');
+        try {
+          const response = await fetch('/api/admin/posts');
+          const posts = await response.json();
+          list.innerHTML = posts.length ? posts.map(post => `
+            <div class="p-3 bg-bg rounded-xl border border-border">
+              <div class="font-bold text-text-main">${post.title}</div>
+              <div class="text-xs text-text-muted mt-1">${post.siteId.name} · ${new Date(post.createdAt).toLocaleDateString()}</div>
+            </div>`).join('') : '<p class="text-text-muted">No posts published yet.</p>';
+        } catch (error) { list.innerHTML = '<p class="text-red-600">Could not load posts.</p>'; }
+      }
+      document.getElementById('refreshPosts').addEventListener('click', loadPosts);
 
       document.getElementById('dataForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -182,6 +270,7 @@
           quill.setContents([]);
           msg.textContent = 'Successfully published to Database!';
           msg.className = 'text-sm font-medium text-center text-emerald-600 block mt-4 p-2 bg-emerald-50 rounded-lg';
+          loadPosts();
         } catch (err) {
           msg.textContent = 'Error publishing post. Check console logs.';
           msg.className = 'text-sm font-medium text-center text-red-600 block mt-4 p-2 bg-red-50 rounded-lg';
