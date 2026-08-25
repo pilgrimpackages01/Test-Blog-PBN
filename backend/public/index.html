@@ -1,0 +1,155 @@
+<!doctype html>
+<html style="height: 100%; margin: 0;">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <title>Admin Dashboard | MongoBridge</title>
+    <style type="text/tailwindcss">
+      @theme {
+        --color-primary: var(--primary);
+        --color-primary-hover: var(--primary-hover);
+        --color-bg: var(--bg);
+        --color-surface: var(--surface);
+        --color-text-main: var(--text-main);
+        --color-text-muted: var(--text-muted);
+        --color-border: var(--border);
+        --color-accent: var(--accent);
+      }
+      :root {
+        --primary: #4f46e5;
+        --primary-hover: #4338ca;
+        --bg: #eef2ff;
+        --surface: #ffffff;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        --border: #e0e7ff;
+        --accent: #fbbf24;
+      }
+      .ql-toolbar {
+        border-color: var(--border) !important;
+        border-top-left-radius: 0.75rem;
+        border-top-right-radius: 0.75rem;
+        background-color: var(--bg);
+      }
+      .ql-container {
+        border-color: var(--border) !important;
+        border-bottom-left-radius: 0.75rem;
+        border-bottom-right-radius: 0.75rem;
+        font-family: inherit !important;
+        font-size: 1rem !important;
+      }
+    </style>
+  </head>
+  <body class="h-screen w-full bg-bg flex flex-col font-sans overflow-hidden">
+    <header class="h-16 bg-primary flex items-center justify-between px-8 text-white shadow-lg z-10 shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
+          <div class="w-4 h-4 border-2 border-indigo-900 rounded-sm rotate-45"></div>
+        </div>
+        <h1 class="text-xl font-bold tracking-tight">MongoBridge <span class="text-indigo-200 font-normal text-sm ml-2">Admin Dashboard</span></h1>
+      </div>
+      <div class="hidden sm:flex items-center gap-6">
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+          <span class="text-xs font-mono uppercase tracking-widest">Backend: Render</span>
+        </div>
+        <a href="/" class="flex items-center gap-2 px-3 py-1.5 bg-primary-hover rounded-lg transition-colors text-xs font-bold uppercase tracking-widest border border-indigo-500 text-white no-underline">
+          View Public Feed
+        </a>
+      </div>
+    </header>
+    
+    <main class="flex-1 flex overflow-y-auto justify-center items-start p-4 md:p-8">
+      <section class="w-full max-w-[800px] bg-surface border border-border p-8 rounded-3xl shadow-xl flex flex-col">
+        <div class="mb-8">
+          <h2 class="text-2xl font-black text-text-main mb-1 italic">New Blog Post</h2>
+          <p class="text-text-muted text-sm">Post new articles directly to the connected MongoDB database.</p>
+        </div>
+
+        <form id="dataForm" class="space-y-6 flex-1 flex flex-col">
+          <div class="space-y-2">
+            <label class="block text-xs font-bold text-primary uppercase tracking-wider">Heading</label>
+            <input 
+              type="text"
+              id="heading" 
+              required 
+              class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none font-bold text-text-main text-lg transition-all placeholder:text-text-muted" 
+              placeholder="Enter post title..."
+            />
+          </div>
+
+          <div class="space-y-2 flex-1 flex flex-col">
+            <label class="block text-xs font-bold text-primary uppercase tracking-wider">Content</label>
+            <div id="editor-container" class="h-64 sm:h-96 text-text-main"></div>
+          </div>
+          
+          <button type="submit" id="submitBtn" class="w-full py-4 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 flex items-center justify-center gap-3 active:scale-[0.98] transition-transform mt-4 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span id="btnText">Publish Post</span>
+          </button>
+          
+          <div id="message" class="text-sm font-medium text-center hidden"></div>
+        </form>
+      </section>
+    </main>
+
+    <script>
+      const quill = new Quill('#editor-container', {
+        theme: 'snow',
+        placeholder: 'Write your content here...',
+        modules: {
+          toolbar: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            ['blockquote', 'code-block'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['link', 'image']
+          ]
+        }
+      });
+
+      document.getElementById('dataForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const heading = document.getElementById('heading').value;
+        const content = quill.root.innerHTML;
+        
+        if (quill.getText().trim().length === 0) {
+          alert('Please enter some content.');
+          return;
+        }
+
+        const btn = document.getElementById('submitBtn');
+        const btnText = document.getElementById('btnText');
+        const msg = document.getElementById('message');
+        
+        btn.disabled = true;
+        btnText.textContent = 'Publishing...';
+        msg.className = 'text-sm font-medium text-center hidden';
+        
+        try {
+          const res = await fetch('/api/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ heading, content })
+          });
+          
+          if (!res.ok) throw new Error('Failed to save');
+          
+          document.getElementById('heading').value = '';
+          quill.setContents([]);
+          msg.textContent = 'Successfully published to Database!';
+          msg.className = 'text-sm font-medium text-center text-emerald-600 block mt-4 p-2 bg-emerald-50 rounded-lg';
+        } catch (err) {
+          msg.textContent = 'Error publishing post. Check console logs.';
+          msg.className = 'text-sm font-medium text-center text-red-600 block mt-4 p-2 bg-red-50 rounded-lg';
+        } finally {
+          btn.disabled = false;
+          btnText.textContent = 'Publish Post';
+          setTimeout(() => { msg.className = 'hidden'; }, 4000);
+        }
+      });
+    </script>
+  </body>
+</html>

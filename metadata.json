@@ -1,0 +1,8 @@
+{
+  "name": "MERN Stack Starter",
+  "description": "A simple frontend and backend application using MongoDB, Express, React, and Node.js.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
