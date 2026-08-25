@@ -93,6 +93,7 @@ const PostSchema = new mongoose.Schema({
   content: { type: String, required: true },
   excerpt: { type: String, default: '' },
   coverImage: { type: String, default: '' },
+  coverImagePublicId: { type: String, default: '' },
   author: { type: String, default: 'OmniCMS' },
   tags: { type: [String], default: [] },
   status: { type: String, enum: ['draft', 'published', 'scheduled'], default: 'published' },
@@ -297,14 +298,14 @@ app.post('/api/admin/uploads', upload.single('file'), async (req, res) => {
   }
   if (!req.file) return res.status(400).json({ error: 'Image file is required' });
   try {
-    const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
+    const result = await new Promise<{ secure_url: string; public_id: string }>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         { folder: 'omnicms/blog', resource_type: 'image', use_filename: true, unique_filename: true },
-        (error, uploaded) => error ? reject(error) : resolve(uploaded as { secure_url: string })
+        (error, uploaded) => error ? reject(error) : resolve(uploaded as { secure_url: string; public_id: string })
       );
       stream.end(req.file!.buffer);
     });
-    res.status(201).json({ url: result.secure_url });
+    res.status(201).json({ url: result.secure_url, publicId: result.public_id });
   } catch (err) {
     console.error('Cloudinary upload failed:', err);
     res.status(500).json({ error: 'Image upload failed' });
@@ -314,7 +315,7 @@ app.post('/api/admin/uploads', upload.single('file'), async (req, res) => {
 // Create a post
 app.post('/api/admin/posts', async (req, res) => {
   try {
-    const { siteSlug, siteSlugs = [], targetMode = 'one', title, slug, content, categorySlug, linkPolicy = 'follow', robots = 'index', excerpt = '', coverImage = '', author = 'OmniCMS', tags = [], status = 'published', scheduledFor, seoTitle = '', seoDescription = '' } = req.body;
+    const { siteSlug, siteSlugs = [], targetMode = 'one', title, slug, content, categorySlug, linkPolicy = 'follow', robots = 'index', excerpt = '', coverImage = '', coverImagePublicId = '', author = 'OmniCMS', tags = [], status = 'published', scheduledFor, seoTitle = '', seoDescription = '' } = req.body;
     const targetSlugs = targetMode === 'all' ? (await Site.find().select('slug')).map(site => site.slug) : targetMode === 'selected' ? siteSlugs : [siteSlug];
     if (!targetSlugs.length || !title || !slug || !content) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -331,7 +332,7 @@ app.post('/api/admin/posts', async (req, res) => {
         const category = await Category.findOne({ siteId: site._id, slug: categorySlug });
         if (category) categoryId = category._id;
       }
-      posts.push(await Post.create({ siteId: site._id, categoryId, title, slug, content: applyLinkPolicy(content, linkPolicy), linkPolicy, robots, excerpt, coverImage, author, tags, status, scheduledFor, publishedAt: status === 'published' ? new Date() : undefined, seoTitle, seoDescription }));
+      posts.push(await Post.create({ siteId: site._id, categoryId, title, slug, content: applyLinkPolicy(content, linkPolicy), linkPolicy, robots, excerpt, coverImage, coverImagePublicId, author, tags, status, scheduledFor, publishedAt: status === 'published' ? new Date() : undefined, seoTitle, seoDescription }));
     }
     res.status(201).json(posts);
   } catch (err) {
@@ -342,19 +343,34 @@ app.post('/api/admin/posts', async (req, res) => {
 
 app.patch('/api/admin/posts/:postId', async (req, res) => {
   try {
-    const allowed = ['title', 'slug', 'content', 'excerpt', 'coverImage', 'author', 'tags', 'status', 'scheduledFor', 'seoTitle', 'seoDescription', 'linkPolicy', 'robots'];
+    const allowed = ['title', 'slug', 'content', 'excerpt', 'coverImage', 'coverImagePublicId', 'author', 'tags', 'status', 'scheduledFor', 'seoTitle', 'seoDescription', 'linkPolicy', 'robots'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([key]) => allowed.includes(key)));
     if (updates.content && updates.linkPolicy) updates.content = applyLinkPolicy(updates.content as string, updates.linkPolicy as 'follow' | 'nofollow');
     if (updates.status === 'published') updates.publishedAt = new Date();
+    const existingPost = await Post.findById(req.params.postId).select('coverImagePublicId');
+    if (!existingPost) return res.status(404).json({ error: 'Post not found' });
     const post = await Post.findByIdAndUpdate(req.params.postId, updates, { new: true, runValidators: true });
-    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (updates.coverImagePublicId && existingPost.coverImagePublicId && updates.coverImagePublicId !== existingPost.coverImagePublicId && cloudinaryConfigured) {
+      await cloudinary.uploader.destroy(existingPost.coverImagePublicId, { resource_type: 'image' });
+    }
     res.json(post);
   } catch (err) { res.status(400).json({ error: 'Could not update post' }); }
 });
 
 app.delete('/api/admin/posts/:postId', async (req, res) => {
-  const post = await Post.findByIdAndDelete(req.params.postId);
+  const post = await Post.findById(req.params.postId);
   if (!post) return res.status(404).json({ error: 'Post not found' });
+  if (post.coverImagePublicId && !cloudinaryConfigured) return res.status(503).json({ error: 'Cloudinary is not configured; post was kept' });
+  if (post.coverImagePublicId && cloudinaryConfigured) {
+    try {
+      const result = await cloudinary.uploader.destroy(post.coverImagePublicId, { resource_type: 'image' });
+      if (result.result !== 'ok' && result.result !== 'not found') return res.status(502).json({ error: 'Image could not be removed; post was kept' });
+    } catch (err) {
+      console.error('Cloudinary delete failed:', err);
+      return res.status(502).json({ error: 'Image could not be removed; post was kept' });
+    }
+  }
+  await post.deleteOne();
   res.status(204).end();
 });
 
