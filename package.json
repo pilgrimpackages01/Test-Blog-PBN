@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
     "dev": "concurrently \"cd backend && PORT=3001 npx tsx server.ts\" \"cd frontend && npx vite --port 3000 --host 0.0.0.0\"",
-    "build": "cd backend && npm run build && cd ../frontend && npm run build",
+    "build": "npm install --include=dev && cd backend && npm run build && cd ../frontend && npm run build",
     "start": "concurrently \"cd backend && PORT=3001 npm start\" \"cd frontend && npx vite preview --port 3000 --host 0.0.0.0\"",
     "preview": "npm start",
     "clean": "rm -rf frontend/dist backend/dist",
