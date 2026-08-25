@@ -111,6 +111,7 @@ const Category = mongoose.model('Category', CategorySchema);
 const Post = mongoose.model('Post', PostSchema);
 
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) return res.status(503).json({ error: 'JWT_SECRET is not configured' });
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
   if (!token) return res.status(401).json({ error: 'Authentication required' });
   try {
@@ -196,7 +197,7 @@ app.get('/api/sites/:siteSlug/posts/:postSlug', async (req, res) => {
     const site = await Site.findOne({ slug: req.params.siteSlug });
     if (!site) return res.status(404).json({ error: 'Site not found' });
     
-    const post = await Post.findOne({ siteId: site._id, slug: req.params.postSlug });
+    const post = await Post.findOne({ siteId: site._id, slug: req.params.postSlug, status: 'published', $or: [{ publishedAt: { $lte: new Date() } }, { publishedAt: null }] });
     if (!post) return res.status(404).json({ error: 'Post not found' });
     
     res.json(post);
@@ -321,6 +322,8 @@ app.post('/api/admin/posts', async (req, res) => {
 
     const sites = await Site.find({ slug: { $in: [...new Set(targetSlugs)] } });
     if (sites.length !== new Set(targetSlugs).size) return res.status(404).json({ error: 'One or more sites were not found' });
+    const existingPost = await Post.findOne({ siteId: { $in: sites.map(site => site._id) }, slug });
+    if (existingPost) return res.status(409).json({ error: 'This slug already exists on one of the selected sites' });
     const posts = [];
     for (const site of sites) {
       let categoryId = null;

@@ -2,6 +2,7 @@ import { Routes, Route, Link, useParams } from 'react-router-dom';
 import { SiteProvider, useSite } from './SiteContext';
 import { BookOpen, Loader2, Search, ArrowUpRight, CalendarDays } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -67,10 +68,16 @@ const PostArticle = () => {
   const { site } = useSite();
   const { postSlug } = useParams();
   const [post, setPost] = useState<Post | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!site || !postSlug) return;
-    fetch(`${API_URL}/api/sites/${site.slug}/posts/${postSlug}`).then((response) => response.json()).then(setPost);
+    setPost(null);
+    setError(false);
+    fetch(`${API_URL}/api/sites/${site.slug}/posts/${postSlug}`).then(async (response) => {
+      if (!response.ok) throw new Error('Article not found');
+      return response.json();
+    }).then(setPost).catch(() => setError(true));
   }, [site, postSlug]);
 
   useEffect(() => {
@@ -81,8 +88,9 @@ const PostArticle = () => {
     return () => { robots?.remove(); };
   }, [post]);
 
+  if (error) return <div className="p-10 text-center text-text-muted"><h1 className="text-2xl font-bold text-text-main">Article not found</h1><Link to={`/${site.slug}`} className="text-primary font-bold">Back to articles</Link></div>;
   if (!post) return <div className="p-10 text-center text-text-muted">Loading article...</div>;
-  return <article className="max-w-3xl mx-auto p-6 md:p-10"><Link to=".." className="text-primary font-bold">Back to articles</Link><h1 className="text-4xl font-black text-text-main mt-8 mb-6">{post.title}</h1><div className="prose max-w-none text-text-main leading-relaxed" dangerouslySetInnerHTML={{ __html: post.content }} /></article>;
+  return <article className="max-w-3xl mx-auto p-6 md:p-10"><Link to={`/${site.slug}`} className="text-primary font-bold">Back to articles</Link>{post.coverImage && <img src={post.coverImage} alt="" className="w-full aspect-video object-cover mt-8" />}<h1 className="text-4xl font-black text-text-main mt-8 mb-6">{post.title}</h1><div className="prose max-w-none text-text-main leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }} /></article>;
 };
 
 const BlogFeed = () => {
@@ -127,11 +135,11 @@ const BlogFeed = () => {
           </div>
         ) : (
           <div className="space-y-8">
-            {featuredPost && !search && <article className="featured-story"><div className="featured-copy"><p className="eyebrow">Featured story</p><h3><Link to={`post/${featuredPost.slug}`}>{featuredPost.title}</Link></h3><p>{featuredPost.excerpt || featuredPost.content.replace(/<[^>]+>/g, '').slice(0, 180)}</p><Link to={`post/${featuredPost.slug}`} className="story-link">Read story <ArrowUpRight size={17} /></Link></div>{featuredPost.coverImage && <img src={featuredPost.coverImage} alt="" />}</article>}
+            {featuredPost && !search && <article className="featured-story"><div className="featured-copy"><p className="eyebrow">Featured story</p><h3><Link to={`/${site.slug}/post/${featuredPost.slug}`}>{featuredPost.title}</Link></h3><p>{featuredPost.excerpt || featuredPost.content.replace(/<[^>]+>/g, '').slice(0, 180)}</p><Link to={`/${site.slug}/post/${featuredPost.slug}`} className="story-link">Read story <ArrowUpRight size={17} /></Link></div>{featuredPost.coverImage && <img src={featuredPost.coverImage} alt="" />}</article>}
             {visiblePosts.slice(search ? 0 : 1).map((post) => (
               <article key={post._id} className="story-row">
                 {post.coverImage && <img src={post.coverImage} alt="" />}
-                <div><div className="story-meta"><CalendarDays size={15} />{new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}<span>{post.author || site.name}</span></div><h3><Link to={`post/${post.slug}`}>{post.title}</Link></h3><p>{post.excerpt || post.content.replace(/<[^>]+>/g, '').slice(0, 180)}...</p><Link to={`post/${post.slug}`} className="story-link">Continue reading <ArrowUpRight size={17} /></Link></div>
+                <div><div className="story-meta"><CalendarDays size={15} />{new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}<span>{post.author || site.name}</span></div><h3><Link to={`/${site.slug}/post/${post.slug}`}>{post.title}</Link></h3><p>{post.excerpt || post.content.replace(/<[^>]+>/g, '').slice(0, 180)}...</p><Link to={`/${site.slug}/post/${post.slug}`} className="story-link">Continue reading <ArrowUpRight size={17} /></Link></div>
               </article>
             ))}
 

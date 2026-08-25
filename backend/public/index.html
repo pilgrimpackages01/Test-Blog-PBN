@@ -141,6 +141,7 @@
           <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Excerpt</span><textarea id="postExcerpt" rows="2" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" placeholder="A short summary for cards and search engines"></textarea></label>
 
           <div class="flex items-center gap-3 text-sm text-text-muted"><input id="imageFile" type="file" accept="image/*" class="max-w-full" /><button type="button" id="uploadImage" class="px-3 py-2 border border-border rounded-lg font-bold text-primary">Upload image</button><span id="uploadMessage"></span></div>
+          <input id="coverImage" type="hidden" />
 
           <div class="space-y-2">
             <label class="block text-xs font-bold text-primary uppercase tracking-wider">Heading</label>
@@ -298,6 +299,7 @@
         const response = await apiFetch('/api/admin/uploads', { method: 'POST', body: form });
         const data = await response.json();
         if (!response.ok) { message.textContent = data.error; return; }
+        document.getElementById('coverImage').value = data.url;
         const range = quill.getSelection(true); quill.insertEmbed(range ? range.index : 0, 'image', data.url); message.textContent = 'Uploaded';
       });
 
@@ -336,7 +338,7 @@
           const res = await apiFetch(editingId ? '/api/admin/posts/' + editingId : '/api/admin/posts', {
             method: editingId ? 'PATCH' : 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ siteSlug, siteSlugs, targetMode, title: heading, slug, content, excerpt: document.getElementById('postExcerpt').value, author: document.getElementById('postAuthor').value, status: document.getElementById('postStatus').value, linkPolicy: document.getElementById('linkPolicy').value, robots: document.getElementById('robots').value })
+            body: JSON.stringify({ siteSlug, siteSlugs, targetMode, title: heading, slug, content, coverImage: document.getElementById('coverImage').value, excerpt: document.getElementById('postExcerpt').value, author: document.getElementById('postAuthor').value, status: document.getElementById('postStatus').value, linkPolicy: document.getElementById('linkPolicy').value, robots: document.getElementById('robots').value })
           });
           
           if (!res.ok) throw new Error('Failed to save');
