@@ -1,6 +1,6 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Link, useParams } from 'react-router-dom';
 import { SiteProvider, useSite } from './SiteContext';
-import { BookOpen, Loader2 } from 'lucide-react';
+import { BookOpen, Loader2, Search, ArrowUpRight, CalendarDays } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -11,6 +11,11 @@ interface Post {
   title: string;
   content: string;
   createdAt: string;
+  robots?: 'index' | 'noindex';
+  excerpt?: string;
+  coverImage?: string;
+  author?: string;
+  status?: 'draft' | 'published' | 'scheduled';
 }
 
 const SiteLayout = ({ children }: { children: React.ReactNode }) => {
@@ -58,10 +63,33 @@ const SiteLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+const PostArticle = () => {
+  const { site } = useSite();
+  const { postSlug } = useParams();
+  const [post, setPost] = useState<Post | null>(null);
+
+  useEffect(() => {
+    if (!site || !postSlug) return;
+    fetch(`${API_URL}/api/sites/${site.slug}/posts/${postSlug}`).then((response) => response.json()).then(setPost);
+  }, [site, postSlug]);
+
+  useEffect(() => {
+    if (!post) return;
+    let robots = document.querySelector('meta[name="robots"]');
+    if (!robots) { robots = document.createElement('meta'); robots.setAttribute('name', 'robots'); document.head.appendChild(robots); }
+    robots.setAttribute('content', post.robots === 'noindex' ? 'noindex, nofollow' : 'index, follow');
+    return () => { robots?.remove(); };
+  }, [post]);
+
+  if (!post) return <div className="p-10 text-center text-text-muted">Loading article...</div>;
+  return <article className="max-w-3xl mx-auto p-6 md:p-10"><Link to=".." className="text-primary font-bold">Back to articles</Link><h1 className="text-4xl font-black text-text-main mt-8 mb-6">{post.title}</h1><div className="prose max-w-none text-text-main leading-relaxed" dangerouslySetInnerHTML={{ __html: post.content }} /></article>;
+};
+
 const BlogFeed = () => {
   const { site } = useSite();
   const [posts, setPosts] = useState<Post[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     if (!site) return;
@@ -81,15 +109,15 @@ const BlogFeed = () => {
   }, [site]);
 
   if (!site) return null;
+  const visiblePosts = posts.filter((post) => `${post.title} ${post.excerpt || ''}`.toLowerCase().includes(search.toLowerCase()));
+  const featuredPost = visiblePosts[0];
 
   return (
-    <div className="p-6 md:p-10 flex flex-col items-center">
-      <div className="w-full max-w-3xl">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 border-b border-border pb-6">
-          <div>
-            <h2 className="text-4xl font-black text-text-main mb-2">Latest Articles</h2>
-            <p className="text-text-muted text-base">{site.seo?.description || `Insights and updates from ${site.name}.`}</p>
-          </div>
+    <div className="public-shell p-5 md:p-10 flex flex-col items-center">
+      <div className="w-full max-w-5xl">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 border-b border-border pb-8">
+          <div><p className="eyebrow">The {site.name} journal</p><h2 className="display-title">Ideas worth keeping.</h2><p className="text-text-muted text-lg max-w-xl">{site.seo?.description || `Insights and updates from ${site.name}.`}</p></div>
+          <label className="search-box"><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search articles" /></label>
         </div>
 
         {fetching ? (
@@ -98,24 +126,16 @@ const BlogFeed = () => {
             <p className="font-medium">Loading articles...</p>
           </div>
         ) : (
-          <div className="space-y-12">
-            {posts.map((post, index) => (
-              <article key={post._id} className="bg-surface p-8 md:p-10 rounded-3xl shadow-sm border border-border hover:shadow-md transition-shadow relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-2 h-full bg-accent"></div>
-                <header className="mb-6">
-                  <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-widest mb-3">
-                    <span>{new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                  </div>
-                  <h3 className="text-3xl font-black text-text-main leading-tight">{post.title}</h3>
-                </header>
-                <div 
-                  className="prose max-w-none text-text-main leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: post.content }}
-                ></div>
+          <div className="space-y-8">
+            {featuredPost && !search && <article className="featured-story"><div className="featured-copy"><p className="eyebrow">Featured story</p><h3><Link to={`post/${featuredPost.slug}`}>{featuredPost.title}</Link></h3><p>{featuredPost.excerpt || featuredPost.content.replace(/<[^>]+>/g, '').slice(0, 180)}</p><Link to={`post/${featuredPost.slug}`} className="story-link">Read story <ArrowUpRight size={17} /></Link></div>{featuredPost.coverImage && <img src={featuredPost.coverImage} alt="" />}</article>}
+            {visiblePosts.slice(search ? 0 : 1).map((post) => (
+              <article key={post._id} className="story-row">
+                {post.coverImage && <img src={post.coverImage} alt="" />}
+                <div><div className="story-meta"><CalendarDays size={15} />{new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}<span>{post.author || site.name}</span></div><h3><Link to={`post/${post.slug}`}>{post.title}</Link></h3><p>{post.excerpt || post.content.replace(/<[^>]+>/g, '').slice(0, 180)}...</p><Link to={`post/${post.slug}`} className="story-link">Continue reading <ArrowUpRight size={17} /></Link></div>
               </article>
             ))}
 
-            {posts.length === 0 && (
+            {visiblePosts.length === 0 && (
               <div className="border-4 border-dashed border-border rounded-3xl flex flex-col items-center justify-center p-16 text-text-muted text-center">
                 <BookOpen className="w-16 h-16 mb-4 opacity-50" />
                 <h3 className="text-xl font-bold text-text-main mb-2">No Articles Yet</h3>
@@ -135,6 +155,7 @@ export default function App() {
       <SiteLayout>
         <Routes>
           <Route path="/" element={<BlogFeed />} />
+              <Route path="/post/:postSlug" element={<PostArticle />} />
         </Routes>
       </SiteLayout>
     </SiteProvider>

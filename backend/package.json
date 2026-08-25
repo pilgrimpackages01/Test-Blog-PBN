@@ -8,12 +8,19 @@
     "start": "node dist/server.cjs"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.10.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "mongoose": "^8.0.0"
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.0.0",
+    "multer": "^2.2.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.2.0",
     "esbuild": "^0.25.0",
     "tsx": "^4.21.0"
   }

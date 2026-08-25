@@ -62,7 +62,16 @@
       </div>
     </header>
     
-    <main class="flex-1 flex overflow-y-auto justify-center items-start p-4 md:p-8">
+    <section id="loginPanel" class="flex-1 flex items-center justify-center p-6">
+      <form id="loginForm" class="w-full max-w-md bg-surface border border-border p-8 rounded-3xl shadow-xl space-y-5">
+        <div><h2 class="text-2xl font-black text-text-main">Admin sign in</h2><p class="text-sm text-text-muted mt-1">Use your configured CMS email and password.</p></div>
+        <input id="loginEmail" type="email" required placeholder="Email address" class="w-full px-4 py-3 bg-bg rounded-xl outline-none border-2 border-transparent focus:border-primary" />
+        <input id="loginPassword" type="password" required placeholder="Password" class="w-full px-4 py-3 bg-bg rounded-xl outline-none border-2 border-transparent focus:border-primary" />
+        <button class="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold">Sign in</button>
+        <p id="loginMessage" class="text-sm text-red-600 hidden"></p>
+      </form>
+    </section>
+    <main id="dashboard" class="hidden flex-1 overflow-y-auto justify-center items-start p-4 md:p-8">
       <section class="w-full max-w-[980px] grid lg:grid-cols-[0.8fr_1.2fr] gap-6">
         <div class="bg-surface border border-border p-8 rounded-3xl shadow-xl flex flex-col h-fit">
           <div class="mb-8">
@@ -95,8 +104,8 @@
         <div class="bg-surface border border-border p-8 rounded-3xl shadow-xl flex flex-col">
         <div class="mb-8 flex justify-between items-end">
           <div>
-            <h2 class="text-2xl font-black text-text-main mb-1 italic">New Blog Post</h2>
-            <p class="text-text-muted text-sm">Post new articles directly to the connected MongoDB database.</p>
+            <h2 id="postFormTitle" class="text-2xl font-black text-text-main mb-1 italic">New Blog Post</h2>
+            <p class="text-text-muted text-sm">Write once, publish across your connected sites.</p>
           </div>
         </div>
 
@@ -111,6 +120,27 @@
               <option value="" disabled selected>Loading sites...</option>
             </select>
           </div>
+
+          <div class="space-y-3">
+            <label class="block text-xs font-bold text-primary uppercase tracking-wider">Publish destination</label>
+            <select id="targetMode" class="w-full px-4 py-3 bg-bg rounded-xl outline-none border-2 border-transparent focus:border-primary">
+              <option value="one">Selected site only</option><option value="selected">Multiple selected sites</option><option value="all">All sites</option>
+            </select>
+            <div id="multiSiteTargets" class="hidden grid sm:grid-cols-2 gap-2"></div>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-4">
+            <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Links</span><select id="linkPolicy" class="w-full px-4 py-3 bg-bg rounded-xl outline-none"><option value="follow">Dofollow</option><option value="nofollow">Nofollow</option></select></label>
+            <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Search indexing</span><select id="robots" class="w-full px-4 py-3 bg-bg rounded-xl outline-none"><option value="index">Index this post</option><option value="noindex">Noindex this post</option></select></label>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-4">
+            <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Status</span><select id="postStatus" class="w-full px-4 py-3 bg-bg rounded-xl outline-none"><option value="published">Publish now</option><option value="draft">Save draft</option><option value="scheduled">Scheduled</option></select></label>
+            <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Author</span><input id="postAuthor" value="OmniCMS" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" /></label>
+          </div>
+          <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Excerpt</span><textarea id="postExcerpt" rows="2" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" placeholder="A short summary for cards and search engines"></textarea></label>
+
+          <div class="flex items-center gap-3 text-sm text-text-muted"><input id="imageFile" type="file" accept="image/*" class="max-w-full" /><button type="button" id="uploadImage" class="px-3 py-2 border border-border rounded-lg font-bold text-primary">Upload image</button><span id="uploadMessage"></span></div>
 
           <div class="space-y-2">
             <label class="block text-xs font-bold text-primary uppercase tracking-wider">Heading</label>
@@ -136,7 +166,7 @@
         </form>
         <div class="mt-10 pt-8 border-t border-border">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-black text-text-main">Posted blogs</h3>
+            <h3 class="text-lg font-black text-text-main">Content library <span id="postCount" class="text-sm text-text-muted"></span></h3>
             <button id="refreshPosts" type="button" class="text-xs font-bold uppercase tracking-wider text-primary">Refresh</button>
           </div>
           <div id="postsList" class="space-y-3 text-sm"><p class="text-text-muted">Loading posts...</p></div>
@@ -146,6 +176,30 @@
     </main>
 
     <script>
+      let authToken = localStorage.getItem('omnicms_admin_token');
+      const apiFetch = (url, options = {}) => fetch(url, {
+        ...options,
+        headers: { ...(options.headers || {}), ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) }
+      });
+      function showDashboard() {
+        document.getElementById('loginPanel').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        loadSites();
+      }
+      document.getElementById('loginForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const message = document.getElementById('loginMessage');
+        try {
+          const response = await fetch('/api/admin/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: loginEmail.value, password: loginPassword.value }) });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'Sign in failed');
+          authToken = data.token;
+          localStorage.setItem('omnicms_admin_token', authToken);
+          showDashboard();
+        } catch (error) { message.textContent = error.message; message.className = 'text-sm text-red-600 block'; }
+      });
+      if (authToken) showDashboard();
+
       const quill = new Quill('#editor-container', {
         theme: 'snow',
         placeholder: 'Write your content here...',
@@ -164,7 +218,7 @@
       let sites = [];
       async function loadSites() {
         try {
-          const res = await fetch('/api/admin/sites');
+          const res = await apiFetch('/api/admin/sites');
           sites = await res.json();
           const select = document.getElementById('siteSelect');
           const managed = document.getElementById('managedSite');
@@ -178,6 +232,8 @@
             const managedOpt = opt.cloneNode(true);
             managed.appendChild(managedOpt);
           });
+          const targets = document.getElementById('multiSiteTargets');
+          targets.innerHTML = sites.map(site => `<label class="flex items-center gap-2 p-2 bg-bg rounded-lg"><input type="checkbox" value="${site.slug}" class="site-target"> <span>${site.name}</span></label>`).join('');
           managed.dispatchEvent(new Event('change'));
           loadPosts();
         } catch (err) {
@@ -198,7 +254,7 @@
         event.preventDefault();
         const message = document.getElementById('siteMessage');
         try {
-          const response = await fetch('/api/admin/sites', {
+          const response = await apiFetch('/api/admin/sites', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               name: document.getElementById('siteName').value.trim(),
@@ -219,27 +275,45 @@
       async function loadPosts() {
         const list = document.getElementById('postsList');
         try {
-          const response = await fetch('/api/admin/posts');
+          const response = await apiFetch('/api/admin/posts');
           const posts = await response.json();
+          document.getElementById('postCount').textContent = `(${posts.length})`;
           list.innerHTML = posts.length ? posts.map(post => `
             <div class="p-3 bg-bg rounded-xl border border-border">
-              <div class="font-bold text-text-main">${post.title}</div>
-              <div class="text-xs text-text-muted mt-1">${post.siteId.name} · ${new Date(post.createdAt).toLocaleDateString()}</div>
+              <div class="flex items-start justify-between gap-3"><div><div class="font-bold text-text-main">${post.title}</div><div class="text-xs text-text-muted mt-1">${post.siteId.name} · ${post.status} · ${new Date(post.createdAt).toLocaleDateString()}</div></div><div class="flex gap-2"><button type="button" data-edit="${post._id}" class="text-xs font-bold text-primary">Edit</button><button type="button" data-delete="${post._id}" class="text-xs font-bold text-red-600">Delete</button></div></div>
             </div>`).join('') : '<p class="text-text-muted">No posts published yet.</p>';
+          list.querySelectorAll('[data-edit]').forEach(button => button.addEventListener('click', () => editPost(posts.find(post => post._id === button.dataset.edit))));
+          list.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', async () => { if (confirm('Delete this post?')) { await apiFetch('/api/admin/posts/' + button.dataset.delete, { method: 'DELETE' }); loadPosts(); } }));
         } catch (error) { list.innerHTML = '<p class="text-red-600">Could not load posts.</p>'; }
       }
       document.getElementById('refreshPosts').addEventListener('click', loadPosts);
+      document.getElementById('targetMode').addEventListener('change', (event) => {
+        document.getElementById('multiSiteTargets').classList.toggle('hidden', event.target.value !== 'selected');
+      });
+      document.getElementById('uploadImage').addEventListener('click', async () => {
+        const file = document.getElementById('imageFile').files[0];
+        const message = document.getElementById('uploadMessage');
+        if (!file) { message.textContent = 'Choose an image first'; return; }
+        const form = new FormData(); form.append('file', file);
+        const response = await apiFetch('/api/admin/uploads', { method: 'POST', body: form });
+        const data = await response.json();
+        if (!response.ok) { message.textContent = data.error; return; }
+        const range = quill.getSelection(true); quill.insertEmbed(range ? range.index : 0, 'image', data.url); message.textContent = 'Uploaded';
+      });
 
       document.getElementById('dataForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const siteSlug = document.getElementById('siteSelect').value;
+        const targetMode = document.getElementById('targetMode').value;
+        const siteSlugs = [...document.querySelectorAll('.site-target:checked')].map(input => input.value);
         const heading = document.getElementById('heading').value;
         const content = quill.root.innerHTML;
         
-        if (!siteSlug) {
+        if (!siteSlug && targetMode === 'one') {
           alert('Please select a site.');
           return;
         }
+        if (targetMode === 'selected' && !siteSlugs.length) { alert('Select at least one destination site.'); return; }
 
         if (quill.getText().trim().length === 0) {
           alert('Please enter some content.');
@@ -258,16 +332,19 @@
         msg.className = 'text-sm font-medium text-center hidden';
         
         try {
-          const res = await fetch('/api/admin/posts', {
-            method: 'POST',
+          const editingId = document.getElementById('dataForm').dataset.editingId;
+          const res = await apiFetch(editingId ? '/api/admin/posts/' + editingId : '/api/admin/posts', {
+            method: editingId ? 'PATCH' : 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ siteSlug, title: heading, slug, content })
+            body: JSON.stringify({ siteSlug, siteSlugs, targetMode, title: heading, slug, content, excerpt: document.getElementById('postExcerpt').value, author: document.getElementById('postAuthor').value, status: document.getElementById('postStatus').value, linkPolicy: document.getElementById('linkPolicy').value, robots: document.getElementById('robots').value })
           });
           
           if (!res.ok) throw new Error('Failed to save');
           
           document.getElementById('heading').value = '';
           quill.setContents([]);
+          document.getElementById('dataForm').dataset.editingId = '';
+          document.getElementById('postFormTitle').textContent = 'New Blog Post';
           msg.textContent = 'Successfully published to Database!';
           msg.className = 'text-sm font-medium text-center text-emerald-600 block mt-4 p-2 bg-emerald-50 rounded-lg';
           loadPosts();
@@ -280,6 +357,21 @@
           setTimeout(() => { msg.className = 'hidden'; }, 4000);
         }
       });
+
+      function editPost(post) {
+        if (!post) return;
+        document.getElementById('dataForm').dataset.editingId = post._id;
+        document.getElementById('postFormTitle').textContent = 'Edit Blog Post';
+        document.getElementById('heading').value = post.title;
+        document.getElementById('postExcerpt').value = post.excerpt || '';
+        document.getElementById('postAuthor').value = post.author || 'OmniCMS';
+        document.getElementById('postStatus').value = post.status || 'published';
+        document.getElementById('siteSelect').value = post.siteId.slug;
+        document.getElementById('linkPolicy').value = post.linkPolicy || 'follow';
+        document.getElementById('robots').value = post.robots || 'index';
+        quill.root.innerHTML = post.content;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     </script>
   </body>
 </html>
