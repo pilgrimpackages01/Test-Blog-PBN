@@ -98,7 +98,7 @@ const PostArticle = () => {
   if (error) return <div className="p-10 text-center text-text-muted"><h1 className="text-2xl font-bold text-text-main mb-4">Article not found</h1><Link to={backLink} className="px-4 py-2 bg-primary text-white font-bold rounded-xl shadow-md">Back to articles</Link></div>;
   if (!post) return <div className="p-10 text-center text-text-muted flex items-center justify-center gap-2"><Loader2 className="animate-spin text-primary w-5 h-5" /> Loading article...</div>;
   return (
-    <article className="max-w-3xl mx-auto p-6 md:py-16 md:px-10">
+    <article className="max-w-5xl mx-auto p-6 md:py-16 md:px-10">
       <Link to={backLink} className="inline-flex items-center gap-2 text-primary font-bold text-sm hover:underline mb-8 group transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" className="transition-transform group-hover:-translate-x-1"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         Back to articles
@@ -124,7 +124,7 @@ const PostArticle = () => {
       
       <div 
         className="prose max-w-none text-text-main leading-relaxed text-base md:text-lg font-sans" 
-        style={{ maxWidth: '65ch' }}
+        style={{ maxWidth: '90%' }}
         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }} 
       />
     </article>
@@ -176,10 +176,10 @@ const BlogFeed = () => {
             {featuredPost && !search && (
               <article className={`featured-story ${featuredPost.coverImage ? 'has-image' : 'no-image'}`}>
                 <div className="featured-copy">
-                  <p className="eyebrow">Featured story</p>
-                  <h3><Link to={getSiteLink(site.slug, isSharedHost, `/post/${featuredPost.slug}`)}>{featuredPost.title}</Link></h3>
+                  <p className="eyebrow">Fresh story</p>
+                  <h3><Link to={getSiteLink(site.slug, isSharedHost, `/${featuredPost.slug}`)}>{featuredPost.title}</Link></h3>
                   <p>{featuredPost.excerpt || featuredPost.content.replace(/<[^>]+>/g, '').slice(0, 180)}</p>
-                  <Link to={getSiteLink(site.slug, isSharedHost, `/post/${featuredPost.slug}`)} className="story-link">Read story <ArrowUpRight size={17} /></Link>
+                  <Link to={getSiteLink(site.slug, isSharedHost, `/${featuredPost.slug}`)} className="story-link">Read story <ArrowUpRight size={17} /></Link>
                 </div>
                 {featuredPost.coverImage && <img src={featuredPost.coverImage} alt="" referrerPolicy="no-referrer" />}
               </article>
@@ -193,9 +193,9 @@ const BlogFeed = () => {
                     {new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
                     <span>{post.author || site.name}</span>
                   </div>
-                  <h3><Link to={getSiteLink(site.slug, isSharedHost, `/post/${post.slug}`)}>{post.title}</Link></h3>
+                  <h3><Link to={getSiteLink(site.slug, isSharedHost, `/${post.slug}`)}>{post.title}</Link></h3>
                   <p>{post.excerpt || post.content.replace(/<[^>]+>/g, '').slice(0, 180)}...</p>
-                  <Link to={getSiteLink(site.slug, isSharedHost, `/post/${post.slug}`)} className="story-link">Continue reading <ArrowUpRight size={17} /></Link>
+                  <Link to={getSiteLink(site.slug, isSharedHost, `/${post.slug}`)} className="story-link">Continue reading <ArrowUpRight size={17} /></Link>
                 </div>
               </article>
             ))}
@@ -220,7 +220,7 @@ export default function App() {
       <SiteLayout>
         <Routes>
           <Route path="/" element={<BlogFeed />} />
-              <Route path="/post/:postSlug" element={<PostArticle />} />
+              <Route path="/:postSlug" element={<PostArticle />} />
         </Routes>
       </SiteLayout>
     </SiteProvider>

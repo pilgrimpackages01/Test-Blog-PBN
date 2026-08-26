@@ -143,6 +143,53 @@ function applyLinkPolicy(content: string, linkPolicy: 'follow' | 'nofollow') {
 // Public API Routes (Tenant-scoped)
 // ------------------------------------------------------------------
 
+// Sitemap Route
+app.get('/:siteSlug/sitemap.xml', async (req, res) => {
+  const { siteSlug } = req.params;
+  const site = await Site.findOne({ slug: siteSlug });
+  if (!site) return res.status(404).send('Site not found');
+
+  const posts = await Post.find({ siteId: site._id, status: 'published', robots: 'index' });
+  const protocol = req.headers['x-forwarded-proto'] || 'https';
+  const siteUrl = `${protocol}://${req.headers.host}`;
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${siteUrl}/${siteSlug}</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>`;
+
+  for (const post of posts) {
+    xml += `
+  <url>
+    <loc>${siteUrl}/${siteSlug}/${post.slug}</loc>
+    <lastmod>${post.publishedAt ? post.publishedAt.toISOString() : new Date().toISOString()}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`;
+  }
+
+  xml += `
+</urlset>`;
+  res.type('application/xml').send(xml);
+});
+
+// Robots.txt Route
+app.get('/:siteSlug/robots.txt', async (req, res) => {
+  const { siteSlug } = req.params;
+  const site = await Site.findOne({ slug: siteSlug });
+  if (!site) return res.status(404).send('Site not found');
+
+  const protocol = req.headers['x-forwarded-proto'] || 'https';
+  const siteUrl = `${protocol}://${req.headers.host}`;
+  res.type('text/plain').send(`User-agent: *
+Allow: /
+
+Sitemap: ${siteUrl}/${siteSlug}/sitemap.xml`);
+});
+
 // Resolve a tenant from the browser's hostname for custom-domain deployments.
 app.get('/api/sites/resolve', async (req, res) => {
   try {
