@@ -4,7 +4,7 @@ import { BookOpen, Loader2, Search, ArrowUpRight, CalendarDays } from 'lucide-re
 import React, { useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = import.meta.env.VITE_API_URL || 'https://omnicms-backend.vercel.app';
 
 interface Post {
   _id: string;
