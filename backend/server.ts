@@ -432,6 +432,10 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Backend API running on port ${PORT}`);
-});
+export default app;
+
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend API running on port ${PORT}`);
+  });
+}
