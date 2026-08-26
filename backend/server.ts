@@ -149,9 +149,12 @@ app.get('/:siteSlug/sitemap.xml', async (req, res) => {
   const site = await Site.findOne({ slug: siteSlug });
   if (!site) return res.status(404).send('Site not found');
 
-  const posts = await Post.find({ siteId: site._id, status: 'published', robots: 'index' });
+  const posts = await Post.find({ siteId: site._id, status: 'published' });
+  
+  // Use the configured domain if available, otherwise fallback to request host
+  const domain = site.domains && site.domains.length > 0 ? site.domains[0] : req.headers.host;
   const protocol = req.headers['x-forwarded-proto'] || 'https';
-  const siteUrl = `${protocol}://${req.headers.host}`;
+  const siteUrl = `${protocol}://${domain}`;
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -182,8 +185,10 @@ app.get('/:siteSlug/robots.txt', async (req, res) => {
   const site = await Site.findOne({ slug: siteSlug });
   if (!site) return res.status(404).send('Site not found');
 
+  const domain = site.domains && site.domains.length > 0 ? site.domains[0] : req.headers.host;
   const protocol = req.headers['x-forwarded-proto'] || 'https';
-  const siteUrl = `${protocol}://${req.headers.host}`;
+  const siteUrl = `${protocol}://${domain}`;
+  
   res.type('text/plain').send(`User-agent: *
 Allow: /
 
@@ -348,6 +353,26 @@ app.post('/api/admin/categories', async (req, res) => {
   }
 });
 
+// Get all categories
+app.get('/api/admin/categories', async (req, res) => {
+  try {
+    const categories = await Category.find().populate('siteId', 'name');
+    res.json(categories);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete a category
+app.delete('/api/admin/categories/:catId', async (req, res) => {
+  try {
+    await Category.findByIdAndDelete(req.params.catId);
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.post('/api/admin/uploads', upload.single('file'), async (req, res) => {
   if (!cloudinaryConfigured) {
     return res.status(503).json({ error: 'Cloudinary is not configured' });
@@ -371,7 +396,7 @@ app.post('/api/admin/uploads', upload.single('file'), async (req, res) => {
 // Create a post
 app.post('/api/admin/posts', async (req, res) => {
   try {
-    const { siteSlug, siteSlugs = [], targetMode = 'one', title, slug, content, categorySlug, linkPolicy = 'follow', robots = 'index', excerpt = '', coverImage = '', coverImagePublicId = '', author = 'OmniCMS', tags = [], status = 'published', scheduledFor, seoTitle = '', seoDescription = '' } = req.body;
+    const { siteSlug, siteSlugs = [], targetMode = 'one', title, slug, content, categoryId, linkPolicy = 'follow', robots = 'index', excerpt = '', coverImage = '', coverImagePublicId = '', author = 'OmniCMS', tags = [], status = 'published', scheduledFor, seoTitle = '', seoDescription = '' } = req.body;
     const targetSlugs = targetMode === 'all' ? (await Site.find().select('slug')).map(site => site.slug) : targetMode === 'selected' ? siteSlugs : [siteSlug];
     if (!targetSlugs.length || !title || !slug || !content) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -383,11 +408,6 @@ app.post('/api/admin/posts', async (req, res) => {
     if (existingPost) return res.status(409).json({ error: 'This slug already exists on one of the selected sites' });
     const posts = [];
     for (const site of sites) {
-      let categoryId = null;
-      if (categorySlug) {
-        const category = await Category.findOne({ siteId: site._id, slug: categorySlug });
-        if (category) categoryId = category._id;
-      }
       posts.push(await Post.create({ siteId: site._id, categoryId, title, slug, content: applyLinkPolicy(content, linkPolicy), linkPolicy, robots, excerpt, coverImage, coverImagePublicId, author, tags, status, scheduledFor, publishedAt: status === 'published' ? new Date() : undefined, seoTitle, seoDescription }));
     }
     res.status(201).json(posts);
@@ -399,7 +419,7 @@ app.post('/api/admin/posts', async (req, res) => {
 
 app.patch('/api/admin/posts/:postId', async (req, res) => {
   try {
-    const allowed = ['title', 'slug', 'content', 'excerpt', 'coverImage', 'coverImagePublicId', 'author', 'tags', 'status', 'scheduledFor', 'seoTitle', 'seoDescription', 'linkPolicy', 'robots'];
+    const allowed = ['title', 'slug', 'content', 'excerpt', 'coverImage', 'coverImagePublicId', 'author', 'tags', 'status', 'scheduledFor', 'seoTitle', 'seoDescription', 'linkPolicy', 'robots', 'categoryId'];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([key]) => allowed.includes(key)));
     if (updates.content && updates.linkPolicy) updates.content = applyLinkPolicy(updates.content as string, updates.linkPolicy as 'follow' | 'nofollow');
     if (updates.status === 'published') updates.publishedAt = new Date();

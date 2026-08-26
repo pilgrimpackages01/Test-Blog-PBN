@@ -104,7 +104,7 @@
       <div class="hidden sm:flex items-center gap-6">
         <div class="flex items-center gap-2">
           <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-          <span class="text-xs font-mono uppercase tracking-widest">Backend: Render</span>
+          <span class="text-xs font-mono uppercase tracking-widest">Backend: vercel</span>
         </div>
         <a href="/" class="flex items-center gap-2 px-3 py-1.5 bg-primary-hover rounded-lg transition-colors text-xs font-bold uppercase tracking-widest border border-indigo-500 text-white no-underline">
           View Public Feed
@@ -129,6 +129,13 @@
         <div class="dashboard-stat"><strong id="statDrafts">0</strong><span>Drafts</span></div>
         <div class="dashboard-stat"><strong id="statScheduled">0</strong><span>Scheduled</span></div>
       </div>
+
+      <!-- New Stats Section -->
+      <div id="postsPerSiteContainer" class="mb-8 bg-surface border border-border p-6 rounded-3xl shadow-sm">
+        <h3 class="text-sm font-bold text-text-muted mb-4 uppercase tracking-wider">Posts per site</h3>
+        <div id="postsPerSiteBreakdown" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"></div>
+      </div>
+
       <!-- Modern Tab Bar -->
       <div class="flex border-b border-border mb-8 overflow-x-auto gap-1">
         <button id="tabBtnPublish" class="px-6 py-3 border-b-2 border-primary text-primary font-bold text-sm tracking-wide focus:outline-none transition-all flex items-center gap-2 whitespace-nowrap">
@@ -138,6 +145,10 @@
         <button id="tabBtnSites" class="px-6 py-3 border-b-2 border-transparent text-text-muted hover:text-text-main font-bold text-sm tracking-wide focus:outline-none transition-all flex items-center gap-2 whitespace-nowrap">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
           Connected Sites & Branding
+        </button>
+        <button id="tabBtnCategories" class="px-6 py-3 border-b-2 border-transparent text-text-muted hover:text-text-main font-bold text-sm tracking-wide focus:outline-none transition-all flex items-center gap-2 whitespace-nowrap">
+           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+           Categories
         </button>
         <button id="tabBtnAudits" class="px-6 py-3 border-b-2 border-transparent text-text-muted hover:text-text-main font-bold text-sm tracking-wide focus:outline-none transition-all flex items-center gap-2 whitespace-nowrap">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
@@ -185,8 +196,40 @@
               <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Author</span><input id="postAuthor" value="OmniCMS" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" /></label>
             </div>
             <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Excerpt</span><textarea id="postExcerpt" rows="2" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" placeholder="A short summary for cards and search engines"></textarea></label>
+            
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">SEO Title</label>
+              <input id="seoTitle" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" placeholder="SEO Title" />
+            </div>
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">SEO Description</label>
+              <textarea id="seoDescription" rows="2" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" placeholder="SEO Description"></textarea>
+            </div>
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Tags (comma separated)</label>
+              <input id="postTags" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" placeholder="tag1, tag2, tag3" />
+            </div>
 
-            <div class="flex items-center gap-3 text-sm text-text-muted"><input id="imageFile" type="file" accept="image/*" class="max-w-full" /><button type="button" id="uploadImage" class="px-3 py-2 border border-border rounded-lg font-bold text-primary">Upload image</button><span id="uploadMessage"></span></div>
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Category</label>
+              <select id="postCategory" class="w-full px-4 py-3 bg-bg rounded-xl outline-none font-bold text-text-main">
+                <option value="">Select a category...</option>
+              </select>
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Featured Image</label>
+              <div class="flex items-center gap-3">
+                <label class="cursor-pointer px-4 py-3 bg-bg border-2 border-dashed border-border hover:border-primary rounded-xl flex-1 text-center font-bold text-text-muted transition-colors">
+                  <input id="imageFile" type="file" accept="image/*" class="hidden" />
+                  <span id="uploadMessage">Click to upload image</span>
+                </label>
+                <button type="button" id="uploadImage" class="px-4 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary-hover transition-colors">Upload</button>
+              </div>
+              <div id="imagePreview" class="hidden mt-2 rounded-xl overflow-hidden border border-border">
+                <img src="" alt="Preview" class="w-full h-32 object-cover" />
+              </div>
+            </div>
             <input id="coverImage" type="hidden" />
             <input id="coverImagePublicId" type="hidden" />
 
@@ -255,7 +298,38 @@
         </form>
       </div>
 
-      <!-- Tab Content 3: Crawler & Bot Audits -->
+      <!-- Tab Content 3: Categories -->
+      <div id="tabContentCategories" class="hidden max-w-2xl mx-auto bg-surface border border-border p-8 rounded-3xl shadow-xl flex flex-col">
+        <div class="mb-8">
+          <h2 class="text-2xl font-black text-text-main mb-1 italic flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-primary"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Manage Categories
+          </h2>
+          <p class="text-text-muted text-sm">Organize your content by category for each site.</p>
+        </div>
+        <form id="categoryForm" class="space-y-5 mb-8">
+          <div class="space-y-2">
+             <label class="block text-xs font-bold text-primary uppercase tracking-wider">Select Site</label>
+             <select id="categorySiteSelect" required class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none font-bold text-text-main"></select>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4">
+             <div class="space-y-2">
+               <label class="block text-xs font-bold text-primary uppercase tracking-wider">Category Name</label>
+               <input id="categoryName" required class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none text-text-main" placeholder="Tech" />
+             </div>
+             <div class="space-y-2">
+               <label class="block text-xs font-bold text-primary uppercase tracking-wider">Category Slug</label>
+               <input id="categorySlug" required class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none text-text-main" placeholder="tech" />
+             </div>
+          </div>
+          <button type="submit" class="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-colors">Add Category</button>
+        </form>
+        <div id="categoriesList" class="space-y-2">
+          <p class="text-text-muted">Loading categories...</p>
+        </div>
+      </div>
+
+      <!-- Tab Content 4: Crawler & Bot Audits -->
       <div id="tabContentAudits" class="hidden w-full bg-surface border border-border p-6 rounded-3xl shadow-xl flex flex-col">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
@@ -345,6 +419,7 @@
       const tabs = [
         { btn: 'tabBtnPublish', content: 'tabContentPublish' },
         { btn: 'tabBtnSites', content: 'tabContentSites' },
+        { btn: 'tabBtnCategories', content: 'tabContentCategories' },
         { btn: 'tabBtnAudits', content: 'tabContentAudits' }
       ];
 
@@ -402,6 +477,7 @@
             opt.value = site.slug;
             opt.textContent = `${site.name} (/${site.slug})`;
             select.appendChild(opt);
+            document.getElementById('categorySiteSelect').appendChild(opt.cloneNode(true));
             const managedOpt = opt.cloneNode(true);
             managed.appendChild(managedOpt);
           });
@@ -455,6 +531,18 @@
           document.getElementById('statPublished').textContent = posts.filter(post => post.status === 'published').length;
           document.getElementById('statDrafts').textContent = posts.filter(post => post.status === 'draft').length;
           document.getElementById('statScheduled').textContent = posts.filter(post => post.status === 'scheduled').length;
+          
+          // Posts per site breakdown
+          const postsPerSite = posts.reduce((acc, post) => {
+            acc[post.siteId.name] = (acc[post.siteId.name] || 0) + 1;
+            return acc;
+          }, {});
+          document.getElementById('postsPerSiteBreakdown').innerHTML = Object.entries(postsPerSite).map(([name, count]) => `
+            <div class="p-3 bg-bg rounded-xl border border-border">
+              <span class="block text-[10px] font-bold text-text-muted uppercase tracking-widest">${name}</span>
+              <strong class="text-lg font-black text-text-main">${count}</strong>
+            </div>`).join('');
+
           list.innerHTML = posts.length ? posts.map(post => `
             <div class="p-3 bg-bg rounded-xl border border-border">
               <div class="flex items-start justify-between gap-3"><div><div class="font-bold text-text-main">${post.title}</div><div class="text-xs text-text-muted mt-1">${post.siteId.name} · ${post.status} · ${new Date(post.createdAt).toLocaleDateString()}</div></div><div class="flex gap-2"><button type="button" data-edit="${post._id}" class="text-xs font-bold text-primary">Edit</button><button type="button" data-delete="${post._id}" class="text-xs font-bold text-red-600">Delete</button></div></div>
@@ -464,6 +552,76 @@
         } catch (error) { list.innerHTML = '<p class="text-red-600">Could not load posts.</p>'; }
       }
       document.getElementById('refreshPosts').addEventListener('click', loadPosts);
+      
+      // Updated loadCategories to also populate post creation form
+      async function loadCategories(specificSiteSlug = null) {
+        const list = document.getElementById('categoriesList');
+        const select = document.getElementById('postCategory');
+        
+        // Reset category dropdown
+        select.innerHTML = '<option value="">Select a category...</option>';
+        
+        try {
+          const res = await apiFetch('/api/admin/categories');
+          const categories = await res.json();
+          
+          // Update list for Category Management tab
+          list.innerHTML = categories.length ? categories.map(cat => `
+            <div class="flex items-center justify-between p-3 bg-bg rounded-xl border border-border">
+              <span class="font-bold text-text-main">${cat.name} <span class="text-text-muted text-xs">(${cat.siteId.name})</span></span>
+              <button type="button" data-delete-cat="${cat._id}" class="text-xs font-bold text-red-600">Delete</button>
+            </div>`).join('') : '<p class="text-text-muted">No categories created.</p>';
+          list.querySelectorAll('[data-delete-cat]').forEach(btn => btn.addEventListener('click', async () => { if (confirm('Delete this category?')) { await apiFetch('/api/admin/categories/' + btn.dataset.deleteCat, { method: 'DELETE' }); loadCategories(); } }));
+          
+          // Populate dropdown if site specified
+          if (specificSiteSlug) {
+            categories.filter(c => c.siteId.slug === specificSiteSlug).forEach(cat => {
+              const opt = document.createElement('option');
+              opt.value = cat._id;
+              opt.textContent = cat.name;
+              select.appendChild(opt);
+            });
+          }
+        } catch(err) { list.innerHTML = '<p class="text-red-600">Error loading categories</p>'; }
+      }
+      
+      // Add event listener to siteSelect to refresh categories
+      document.getElementById('siteSelect').addEventListener('change', (e) => loadCategories(e.target.value));
+
+      document.getElementById('categoryForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          const res = await apiFetch('/api/admin/categories', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              siteSlug: document.getElementById('categorySiteSelect').value, 
+              name: document.getElementById('categoryName').value, 
+              slug: document.getElementById('categorySlug').value 
+            })
+          });
+          if (!res.ok) throw new Error('Failed to create');
+          document.getElementById('categoryName').value = '';
+          document.getElementById('categorySlug').value = '';
+          loadCategories();
+        } catch(err) { alert('Failed'); }
+      });
+      loadCategories();
+
+      // Image preview
+      document.getElementById('imageFile').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          document.getElementById('uploadMessage').textContent = file.name;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const preview = document.getElementById('imagePreview');
+            preview.classList.remove('hidden');
+            preview.querySelector('img').src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+
       document.getElementById('targetMode').addEventListener('change', (event) => {
         const targetVal = event.target.value;
         const isOne = targetVal === 'one';
@@ -524,7 +682,23 @@
           const res = await apiFetch(editingId ? '/api/admin/posts/' + editingId : '/api/admin/posts', {
             method: editingId ? 'PATCH' : 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ siteSlug, siteSlugs, targetMode, title: heading, slug, content, coverImage: document.getElementById('coverImage').value, coverImagePublicId: document.getElementById('coverImagePublicId').value, excerpt: document.getElementById('postExcerpt').value, author: document.getElementById('postAuthor').value, status: document.getElementById('postStatus').value, linkPolicy: document.getElementById('linkPolicy').value, robots: document.getElementById('robots').value })
+            body: JSON.stringify({ 
+              siteSlug, siteSlugs, targetMode, 
+              title: heading, 
+              slug, 
+              content, 
+              categoryId: document.getElementById('postCategory').value,
+              seoTitle: document.getElementById('seoTitle').value,
+              seoDescription: document.getElementById('seoDescription').value,
+              tags: document.getElementById('postTags').value.split(',').map(t => t.trim()).filter(t => t),
+              coverImage: document.getElementById('coverImage').value, 
+              coverImagePublicId: document.getElementById('coverImagePublicId').value, 
+              excerpt: document.getElementById('postExcerpt').value, 
+              author: document.getElementById('postAuthor').value, 
+              status: document.getElementById('postStatus').value, 
+              linkPolicy: document.getElementById('linkPolicy').value, 
+              robots: document.getElementById('robots').value 
+            })
           });
           
           if (!res.ok) throw new Error('Failed to save');
@@ -557,6 +731,10 @@
         document.getElementById('coverImage').value = post.coverImage || '';
         document.getElementById('coverImagePublicId').value = post.coverImagePublicId || '';
         document.getElementById('postAuthor').value = post.author || 'OmniCMS';
+        document.getElementById('postCategory').value = post.categoryId || '';
+        document.getElementById('seoTitle').value = post.seoTitle || '';
+        document.getElementById('seoDescription').value = post.seoDescription || '';
+        document.getElementById('postTags').value = post.tags ? post.tags.join(', ') : '';
         document.getElementById('postStatus').value = post.status || 'published';
         document.getElementById('siteSelect').value = post.siteId.slug;
         document.getElementById('linkPolicy').value = post.linkPolicy || 'follow';
