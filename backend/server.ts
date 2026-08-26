@@ -143,6 +143,54 @@ function applyLinkPolicy(content: string, linkPolicy: 'follow' | 'nofollow') {
 // Public API Routes (Tenant-scoped)
 // ------------------------------------------------------------------
 
+function getSiteUrl(site: any, req: express.Request) {
+  const configuredFrontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '');
+  const domain = site.domains && site.domains.length > 0
+    ? site.domains[0]
+    : configuredFrontendUrl || req.headers.host;
+  const protocol = req.headers['x-forwarded-proto'] || 'https';
+  return domain.startsWith('http://') || domain.startsWith('https://')
+    ? domain
+    : `${protocol}://${domain}`;
+}
+
+function escapeXml(value: string) {
+  return value.replace(/[<>&'\"]/g, character => ({
+    '<': '&lt;',
+    '>': '&gt;',
+    '&': '&amp;',
+    "'": '&apos;',
+    '\"': '&quot;'
+  }[character] || character));
+}
+
+// Global sitemap index for crawlers that access the backend directly.
+app.get('/sitemap.xml', async (req, res) => {
+  const sites = await Site.find({}, { slug: 1, domains: 1 }).sort({ slug: 1 });
+  const sitemapUrls = sites.map(site => `  <sitemap>
+    <loc>${escapeXml(`${getSiteUrl(site, req)}/${site.slug}/sitemap.xml`)}</loc>
+    <lastmod>${site.updatedAt ? site.updatedAt.toISOString() : new Date().toISOString()}</lastmod>
+  </sitemap>`).join('\n');
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${sitemapUrls}
+</sitemapindex>`;
+  res.type('application/xml').send(xml);
+});
+
+// Global robots file lists every tenant sitemap as well as the sitemap index.
+app.get('/robots.txt', async (req, res) => {
+  const sites = await Site.find({}, { slug: 1, domains: 1 }).sort({ slug: 1 });
+  const sitemapUrls = sites.map(site => `${getSiteUrl(site, req)}/${site.slug}/sitemap.xml`).join('\n');
+  const globalSitemap = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/sitemap.xml`;
+
+  res.type('text/plain').send(`User-agent: *
+Allow: /
+
+Sitemap: ${globalSitemap}${sitemapUrls ? `\n${sitemapUrls.split('\n').map(url => `Sitemap: ${url}`).join('\n')}` : ''}`);
+});
+
 // Sitemap Route
 app.get('/:siteSlug/sitemap.xml', async (req, res) => {
   const { siteSlug } = req.params;
@@ -151,15 +199,12 @@ app.get('/:siteSlug/sitemap.xml', async (req, res) => {
 
   const posts = await Post.find({ siteId: site._id, status: 'published' });
   
-  // Use the configured domain if available, otherwise fallback to request host
-  const domain = site.domains && site.domains.length > 0 ? site.domains[0] : req.headers.host;
-  const protocol = req.headers['x-forwarded-proto'] || 'https';
-  const siteUrl = `${protocol}://${domain}`;
+  const siteUrl = getSiteUrl(site, req);
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>${siteUrl}/${siteSlug}</loc>
+    <loc>${escapeXml(`${siteUrl}/${siteSlug}`)}</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>`;
@@ -167,7 +212,7 @@ app.get('/:siteSlug/sitemap.xml', async (req, res) => {
   for (const post of posts) {
     xml += `
   <url>
-    <loc>${siteUrl}/${siteSlug}/${post.slug}</loc>
+    <loc>${escapeXml(`${siteUrl}/${siteSlug}/${post.slug}`)}</loc>
     <lastmod>${post.publishedAt ? post.publishedAt.toISOString() : new Date().toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -185,9 +230,7 @@ app.get('/:siteSlug/robots.txt', async (req, res) => {
   const site = await Site.findOne({ slug: siteSlug });
   if (!site) return res.status(404).send('Site not found');
 
-  const domain = site.domains && site.domains.length > 0 ? site.domains[0] : req.headers.host;
-  const protocol = req.headers['x-forwarded-proto'] || 'https';
-  const siteUrl = `${protocol}://${domain}`;
+  const siteUrl = getSiteUrl(site, req);
   
   res.type('text/plain').send(`User-agent: *
 Allow: /

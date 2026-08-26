@@ -125,6 +125,13 @@ GET /api/sites/:siteSlug/categories
 GET /api/sites/:siteSlug/sitemap.xml
 GET /api/sites/:siteSlug/feed.xml
 GET /api/sites/resolve?hostname=example.com
+
+SEO files are also served by the frontend through Cloudflare Pages Functions:
+
+GET /robots.txt
+GET /sitemap.xml
+GET /:siteSlug/robots.txt
+GET /:siteSlug/sitemap.xml
 ```
 
 ### Admin endpoints
@@ -219,6 +226,8 @@ Configure:
 - Environment variable: `VITE_API_URL=https://omnicms.onrender.com`
 
 For client-side routes such as `/travel/post/article-slug`, configure SPA fallback behavior so requests serve `frontend/index.html`.
+
+The SEO Pages Functions proxy these routes to the backend, so every current and newly created site is included automatically. Set `BACKEND_URL` in Cloudflare Pages when the backend URL differs from the default `https://omnicms-backend.vercel.app`.
 
 ## Security Notes
 
