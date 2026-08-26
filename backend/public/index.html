@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google-site-verification" content="Dp4VCXVFX-eeToJSc2jzlZw70bLi6Rj6uLxXurX3Goo" />
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
@@ -128,109 +129,189 @@
         <div class="dashboard-stat"><strong id="statDrafts">0</strong><span>Drafts</span></div>
         <div class="dashboard-stat"><strong id="statScheduled">0</strong><span>Scheduled</span></div>
       </div>
-      <section class="w-full grid lg:grid-cols-[0.72fr_1.35fr_0.9fr] gap-6">
-        <div class="bg-surface border border-border p-8 rounded-3xl shadow-xl flex flex-col h-fit">
-          <div class="mb-8">
-            <h2 class="text-2xl font-black text-text-main mb-1 italic">Connect a site</h2>
-            <p class="text-text-muted text-sm">Map one or more Cloudflare domains to a blog.</p>
+      <!-- Modern Tab Bar -->
+      <div class="flex border-b border-border mb-8 overflow-x-auto gap-1">
+        <button id="tabBtnPublish" class="px-6 py-3 border-b-2 border-primary text-primary font-bold text-sm tracking-wide focus:outline-none transition-all flex items-center gap-2 whitespace-nowrap">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"/></svg>
+          Publishing Studio
+        </button>
+        <button id="tabBtnSites" class="px-6 py-3 border-b-2 border-transparent text-text-muted hover:text-text-main font-bold text-sm tracking-wide focus:outline-none transition-all flex items-center gap-2 whitespace-nowrap">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+          Connected Sites & Branding
+        </button>
+        <button id="tabBtnAudits" class="px-6 py-3 border-b-2 border-transparent text-text-muted hover:text-text-main font-bold text-sm tracking-wide focus:outline-none transition-all flex items-center gap-2 whitespace-nowrap">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+          Search Crawler & Bot Audits
+        </button>
+      </div>
+
+      <!-- Tab Content 1: Publishing Studio -->
+      <div id="tabContentPublish" class="grid lg:grid-cols-[1.4fr_0.8fr] gap-6">
+        <div class="bg-surface border border-border p-8 rounded-3xl shadow-xl flex flex-col">
+          <div class="mb-8 flex justify-between items-end">
+            <div>
+              <h2 id="postFormTitle" class="text-2xl font-black text-text-main mb-1 italic">New Blog Post</h2>
+              <p class="text-text-muted text-sm">Write once, publish across your connected sites.</p>
+            </div>
           </div>
-          <form id="siteForm" class="space-y-5">
-            <div class="space-y-2">
-              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Existing site</label>
-              <select id="managedSite" class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none font-bold text-text-main"></select>
+
+          <form id="dataForm" class="space-y-6 flex-1 flex flex-col">
+            <div id="singleSiteContainer" class="space-y-2">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Select Site</label>
+              <select 
+                id="siteSelect" 
+                required
+                class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none font-bold text-text-main text-lg transition-all"
+              >
+                <option value="" disabled selected>Loading sites...</option>
+              </select>
             </div>
-            <div class="space-y-2">
-              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Site name</label>
-              <input id="siteName" required class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none text-text-main" placeholder="Travel Journal" />
+
+            <div class="space-y-3">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Publish destination</label>
+              <select id="targetMode" class="w-full px-4 py-3 bg-bg rounded-xl outline-none border-2 border-transparent focus:border-primary">
+                <option value="one">Selected site only</option><option value="selected">Multiple selected sites</option><option value="all">All sites</option>
+              </select>
+              <div id="multiSiteTargets" class="hidden grid sm:grid-cols-2 gap-2"></div>
             </div>
-            <div class="space-y-2">
-              <label class="block text-xs font-bold text-primary uppercase tracking-wider">URL slug</label>
-              <input id="siteSlug" required class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none text-text-main" placeholder="travel" />
+
+            <div class="grid sm:grid-cols-2 gap-4">
+              <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Links</span><select id="linkPolicy" class="w-full px-4 py-3 bg-bg rounded-xl outline-none"><option value="follow">Dofollow</option><option value="nofollow">Nofollow</option></select></label>
+              <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Search indexing</span><select id="robots" class="w-full px-4 py-3 bg-bg rounded-xl outline-none"><option value="index">Index this post</option><option value="noindex">Noindex this post</option></select></label>
             </div>
-            <div class="space-y-2">
-              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Connected domains</label>
-              <textarea id="siteDomains" rows="3" class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none text-text-main" placeholder="travel.example.com&#10;www.travel.example.com"></textarea>
-              <p class="text-xs text-text-muted">One domain per line. Do not include http://.</p>
+
+            <div class="grid sm:grid-cols-2 gap-4">
+              <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Status</span><select id="postStatus" class="w-full px-4 py-3 bg-bg rounded-xl outline-none"><option value="published">Publish now</option><option value="draft">Save draft</option><option value="scheduled">Scheduled</option></select></label>
+              <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Author</span><input id="postAuthor" value="OmniCMS" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" /></label>
             </div>
-            <button type="submit" class="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-colors">Save site connection</button>
-            <div id="siteMessage" class="text-sm font-medium text-center hidden"></div>
+            <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Excerpt</span><textarea id="postExcerpt" rows="2" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" placeholder="A short summary for cards and search engines"></textarea></label>
+
+            <div class="flex items-center gap-3 text-sm text-text-muted"><input id="imageFile" type="file" accept="image/*" class="max-w-full" /><button type="button" id="uploadImage" class="px-3 py-2 border border-border rounded-lg font-bold text-primary">Upload image</button><span id="uploadMessage"></span></div>
+            <input id="coverImage" type="hidden" />
+            <input id="coverImagePublicId" type="hidden" />
+
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Heading</label>
+              <input 
+                type="text"
+                id="heading" 
+                required 
+                class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none font-bold text-text-main text-lg transition-all placeholder:text-text-muted" 
+                placeholder="Enter post title..."
+              />
+            </div>
+
+            <div class="space-y-2 flex-1 flex flex-col">
+              <label class="block text-xs font-bold text-primary uppercase tracking-wider">Content</label>
+              <div id="editor-container" class="h-64 sm:h-96 text-text-main"></div>
+            </div>
+            
+            <button type="submit" id="submitBtn" class="w-full py-4 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 flex items-center justify-center gap-3 active:scale-[0.98] transition-transform mt-4 disabled:opacity-50 disabled:cursor-not-allowed">
+              <span id="btnText">Publish Post</span>
+            </button>
+            
+            <div id="message" class="text-sm font-medium text-center hidden"></div>
           </form>
         </div>
 
-        <div class="bg-surface border border-border p-8 rounded-3xl shadow-xl flex flex-col">
-        <div class="mb-8 flex justify-between items-end">
-          <div>
-            <h2 id="postFormTitle" class="text-2xl font-black text-text-main mb-1 italic">New Blog Post</h2>
-            <p class="text-text-muted text-sm">Write once, publish across your connected sites.</p>
-          </div>
-        </div>
-
-        <form id="dataForm" class="space-y-6 flex-1 flex flex-col">
-          <div id="singleSiteContainer" class="space-y-2">
-            <label class="block text-xs font-bold text-primary uppercase tracking-wider">Select Site</label>
-            <select 
-              id="siteSelect" 
-              required
-              class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none font-bold text-text-main text-lg transition-all"
-            >
-              <option value="" disabled selected>Loading sites...</option>
-            </select>
-          </div>
-
-          <div class="space-y-3">
-            <label class="block text-xs font-bold text-primary uppercase tracking-wider">Publish destination</label>
-            <select id="targetMode" class="w-full px-4 py-3 bg-bg rounded-xl outline-none border-2 border-transparent focus:border-primary">
-              <option value="one">Selected site only</option><option value="selected">Multiple selected sites</option><option value="all">All sites</option>
-            </select>
-            <div id="multiSiteTargets" class="hidden grid sm:grid-cols-2 gap-2"></div>
-          </div>
-
-          <div class="grid sm:grid-cols-2 gap-4">
-            <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Links</span><select id="linkPolicy" class="w-full px-4 py-3 bg-bg rounded-xl outline-none"><option value="follow">Dofollow</option><option value="nofollow">Nofollow</option></select></label>
-            <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Search indexing</span><select id="robots" class="w-full px-4 py-3 bg-bg rounded-xl outline-none"><option value="index">Index this post</option><option value="noindex">Noindex this post</option></select></label>
-          </div>
-
-          <div class="grid sm:grid-cols-2 gap-4">
-            <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Status</span><select id="postStatus" class="w-full px-4 py-3 bg-bg rounded-xl outline-none"><option value="published">Publish now</option><option value="draft">Save draft</option><option value="scheduled">Scheduled</option></select></label>
-            <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Author</span><input id="postAuthor" value="OmniCMS" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" /></label>
-          </div>
-          <label class="space-y-2"><span class="block text-xs font-bold text-primary uppercase tracking-wider">Excerpt</span><textarea id="postExcerpt" rows="2" class="w-full px-4 py-3 bg-bg rounded-xl outline-none" placeholder="A short summary for cards and search engines"></textarea></label>
-
-          <div class="flex items-center gap-3 text-sm text-text-muted"><input id="imageFile" type="file" accept="image/*" class="max-w-full" /><button type="button" id="uploadImage" class="px-3 py-2 border border-border rounded-lg font-bold text-primary">Upload image</button><span id="uploadMessage"></span></div>
-          <input id="coverImage" type="hidden" />
-          <input id="coverImagePublicId" type="hidden" />
-
-          <div class="space-y-2">
-            <label class="block text-xs font-bold text-primary uppercase tracking-wider">Heading</label>
-            <input 
-              type="text"
-              id="heading" 
-              required 
-              class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none font-bold text-text-main text-lg transition-all placeholder:text-text-muted" 
-              placeholder="Enter post title..."
-            />
-          </div>
-
-          <div class="space-y-2 flex-1 flex flex-col">
-            <label class="block text-xs font-bold text-primary uppercase tracking-wider">Content</label>
-            <div id="editor-container" class="h-64 sm:h-96 text-text-main"></div>
-          </div>
-          
-          <button type="submit" id="submitBtn" class="w-full py-4 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 flex items-center justify-center gap-3 active:scale-[0.98] transition-transform mt-4 disabled:opacity-50 disabled:cursor-not-allowed">
-            <span id="btnText">Publish Post</span>
-          </button>
-          
-          <div id="message" class="text-sm font-medium text-center hidden"></div>
-        </form>
-        </div>
-        <aside class="bg-surface border border-border p-6 rounded-3xl shadow-xl lg:sticky lg:top-4">
+        <aside class="bg-surface border border-border p-6 rounded-3xl shadow-xl h-fit lg:sticky lg:top-4">
           <div class="flex items-center justify-between gap-3 mb-4">
             <h3 class="text-lg font-black text-text-main">Content library <span id="postCount" class="text-sm text-text-muted"></span></h3>
             <button id="refreshPosts" type="button" class="shrink-0 text-xs font-bold uppercase tracking-wider text-primary">Refresh</button>
           </div>
           <div id="postsList" class="space-y-3 text-sm"><p class="text-text-muted">Loading posts...</p></div>
         </aside>
-      </section>
+      </div>
+
+      <!-- Tab Content 2: Connected Sites & Branding -->
+      <div id="tabContentSites" class="hidden max-w-2xl mx-auto bg-surface border border-border p-8 rounded-3xl shadow-xl flex flex-col">
+        <div class="mb-8">
+          <h2 class="text-2xl font-black text-text-main mb-1 italic flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-primary"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+            Connect a Tenant Site
+          </h2>
+          <p class="text-text-muted text-sm">Map and config connected sites and branding parameters.</p>
+        </div>
+        <form id="siteForm" class="space-y-5">
+          <div class="space-y-2">
+            <label class="block text-xs font-bold text-primary uppercase tracking-wider">Existing site</label>
+            <select id="managedSite" class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none font-bold text-text-main"></select>
+          </div>
+          <div class="space-y-2">
+            <label class="block text-xs font-bold text-primary uppercase tracking-wider">Site name</label>
+            <input id="siteName" required class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none text-text-main" placeholder="Travel Journal" />
+          </div>
+          <div class="space-y-2">
+            <label class="block text-xs font-bold text-primary uppercase tracking-wider">URL slug</label>
+            <input id="siteSlug" required class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none text-text-main" placeholder="travel" />
+          </div>
+          <div class="space-y-2">
+            <label class="block text-xs font-bold text-primary uppercase tracking-wider">Connected domains</label>
+            <textarea id="siteDomains" rows="3" class="w-full px-4 py-3 bg-bg border-2 border-transparent focus:border-primary rounded-xl outline-none text-text-main" placeholder="travel.example.com&#10;www.travel.example.com"></textarea>
+            <p class="text-xs text-text-muted">One domain per line. Do not include http://.</p>
+          </div>
+          <button type="submit" class="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-colors">Save site connection</button>
+          <div id="siteMessage" class="text-sm font-medium text-center hidden"></div>
+        </form>
+      </div>
+
+      <!-- Tab Content 3: Crawler & Bot Audits -->
+      <div id="tabContentAudits" class="hidden w-full bg-surface border border-border p-6 rounded-3xl shadow-xl flex flex-col">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-2xl font-black text-text-main italic flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-primary"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+              Search Crawler & Bot Audits
+            </h2>
+            <p class="text-text-muted text-sm mt-1">Real-time logs of Googlebot, Bingbot, and search engines visiting your static pages rendered via Prerender.io.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="refreshBotLogs" type="button" class="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors">
+              Refresh Audit Logs
+            </button>
+          </div>
+        </div>
+        
+        <!-- Live Statistics of Crawls -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="p-4 bg-bg rounded-2xl border border-border">
+            <span class="block text-[10px] font-bold text-text-muted uppercase tracking-widest">Total Bot Requests</span>
+            <strong id="botTotalRequests" class="block text-2xl font-extrabold text-text-main mt-1">0</strong>
+          </div>
+          <div class="p-4 bg-bg rounded-2xl border border-border">
+            <span class="block text-[10px] font-bold text-text-muted uppercase tracking-widest">Googlebot Visits</span>
+            <strong id="botGooglebotVisits" class="block text-2xl font-extrabold text-text-main mt-1">0</strong>
+          </div>
+          <div class="p-4 bg-bg rounded-2xl border border-border">
+            <span class="block text-[10px] font-bold text-text-muted uppercase tracking-widest">Bingbot Visits</span>
+            <strong id="botBingbotVisits" class="block text-2xl font-extrabold text-text-main mt-1">0</strong>
+          </div>
+          <div class="p-4 bg-bg rounded-2xl border border-border">
+            <span class="block text-[10px] font-bold text-text-muted uppercase tracking-widest">Other Crawlers</span>
+            <strong id="botOtherVisits" class="block text-2xl font-extrabold text-text-main mt-1">0</strong>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto rounded-2xl border border-border">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr class="bg-bg text-text-muted text-xs font-bold uppercase tracking-wider border-b border-border">
+                <th class="p-4">Timestamp</th>
+                <th class="p-4">Bot Type</th>
+                <th class="p-4">IP Address</th>
+                <th class="p-4">Requested Page / URL</th>
+                <th class="p-4">Status</th>
+              </tr>
+            </thead>
+            <tbody id="botLogsTableBody" class="divide-y divide-border text-text-main">
+              <tr>
+                <td colspan="5" class="p-8 text-center text-text-muted">Loading bot audit logs...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       </div>
     </main>
 
@@ -244,6 +325,7 @@
         document.getElementById('loginPanel').classList.add('hidden');
         document.getElementById('dashboard').classList.remove('hidden');
         loadSites();
+        loadBotLogs();
       }
       document.getElementById('loginForm').addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -258,6 +340,38 @@
         } catch (error) { message.textContent = error.message; message.className = 'text-sm text-red-600 block'; }
       });
       if (authToken) showDashboard();
+
+      // Tab Switching Logic
+      const tabs = [
+        { btn: 'tabBtnPublish', content: 'tabContentPublish' },
+        { btn: 'tabBtnSites', content: 'tabContentSites' },
+        { btn: 'tabBtnAudits', content: 'tabContentAudits' }
+      ];
+
+      tabs.forEach(tab => {
+        const btnEl = document.getElementById(tab.btn);
+        if (btnEl) {
+          btnEl.addEventListener('click', () => {
+            // Deactivate all
+            tabs.forEach(t => {
+              const b = document.getElementById(t.btn);
+              const c = document.getElementById(t.content);
+              if (b) {
+                b.className = "px-6 py-3 border-b-2 border-transparent text-text-muted hover:text-text-main font-bold text-sm tracking-wide focus:outline-none transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer";
+              }
+              if (c) c.classList.add('hidden');
+            });
+            // Activate current
+            btnEl.className = "px-6 py-3 border-b-2 border-primary text-primary font-bold text-sm tracking-wide focus:outline-none transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer";
+            document.getElementById(tab.content).classList.remove('hidden');
+            
+            // On demand logs reload
+            if (tab.btn === 'tabBtnAudits') {
+              loadBotLogs();
+            }
+          });
+        }
+      });
 
       const quill = new Quill('#editor-container', {
         theme: 'snow',
@@ -450,6 +564,57 @@
         quill.root.innerHTML = post.content;
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
+
+      async function loadBotLogs() {
+        const tbody = document.getElementById('botLogsTableBody');
+        try {
+          const res = await apiFetch('/api/admin/bot-logs');
+          if (!res.ok) throw new Error('Failed to load bot logs');
+          const logs = await res.json();
+          
+          const total = logs.length;
+          const google = logs.filter(l => l.botType === 'Googlebot').length;
+          const bing = logs.filter(l => l.botType === 'Bingbot').length;
+          const others = total - (google + bing);
+          
+          document.getElementById('botTotalRequests').textContent = total;
+          document.getElementById('botGooglebotVisits').textContent = google;
+          document.getElementById('botBingbotVisits').textContent = bing;
+          document.getElementById('botOtherVisits').textContent = others;
+          
+          if (!total) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-text-muted">No search crawlers have visited your pages yet. Keep publishing to attract search engines!</td></tr>`;
+            return;
+          }
+          
+          tbody.innerHTML = logs.map(log => {
+            const dateStr = new Date(log.createdAt).toLocaleString();
+            let badgeClass = 'bg-slate-100 text-slate-700';
+            if (log.botType === 'Googlebot') badgeClass = 'bg-emerald-100 text-emerald-800 font-bold';
+            else if (log.botType === 'Bingbot') badgeClass = 'bg-blue-100 text-blue-800 font-bold';
+            else if (log.botType.includes('ChatGPT')) badgeClass = 'bg-purple-100 text-purple-800';
+            
+            let path = log.url;
+            try {
+              const u = new URL(log.url);
+              path = u.pathname + u.search;
+            } catch(e) {}
+
+            return `
+              <tr class="hover:bg-bg transition-colors">
+                <td class="p-4 font-mono text-xs text-text-muted">${dateStr}</td>
+                <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${badgeClass}">${log.botType}</span></td>
+                <td class="p-4 font-mono text-xs text-text-main">${log.ip || 'Unknown'}</td>
+                <td class="p-4"><a href="${log.url}" target="_blank" class="text-primary hover:underline font-medium text-xs break-all">${path}</a></td>
+                <td class="p-4 text-xs"><span class="text-emerald-600 font-bold flex items-center gap-1">✓ Active</span></td>
+              </tr>
+            `;
+          }).join('');
+        } catch (err) {
+          tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-600 font-medium">Could not load bot audit logs. Check authorization.</td></tr>`;
+        }
+      }
+      document.getElementById('refreshBotLogs').addEventListener('click', loadBotLogs);
     </script>
   </body>
 </html>

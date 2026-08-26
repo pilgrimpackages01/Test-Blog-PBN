@@ -1,62 +1,33 @@
-# Multi-Tenant MERN CMS Platform - Architecture Plan
+# OmniCMS Visual & Functional Roadmap
 
-## Overview
-This document outlines the architecture for transforming the existing single-tenant MERN application into a robust multi-tenant CMS/blog platform. The platform will support multiple distinct "sites" (e.g., `/travel`, `/tech`), each with its own branding, categories, and posts, all powered by a single frontend and backend deployment.
+## Core Vision
+This roadmap transforms OmniCMS into a premium, responsive multi-tenant platform with exquisite typography, dynamic layout adaptation (fixing empty column gaps when cover images are missing), and a fully tab-consolidated, real-time admin experience.
 
-## Core Constraints & Principles
-1. **Hosting**: Frontend on Cloudflare Pages (`myproject.pages.dev`), Backend on Render, Database on MongoDB.
-2. **Multi-Tenancy Setup**: Initially path-based (e.g., `myproject.pages.dev/travel`), but architected to support subdomains/custom domains in the future.
-3. **Database**: **MongoDB ONLY**. No Redis cache as per project constraints.
-4. **Theming**: Light theme ONLY. All colors must be defined as CSS variables (e.g., `--primary-color`) and dynamically injected via React based on the active tenant's settings.
-5. **UI Library**: Standard React/Tailwind CSS ONLY. Strictly **NO Radix UI** (or any other headless component libraries).
+---
 
-## 1. Database Architecture (MongoDB)
-We will transition from a single `Data` collection to a relational, multi-tenant schema.
+## Part 1: Visual Design & Responsive Layouts (Anti-Slop Alignment)
+1. **Dynamic Grid Adaptability (Missing Image Fix)**:
+   * Fix the split-grid layout when articles do not have cover images.
+   * Add conditional styling to `.featured-story` and `.story-row` to render full-width when there is no cover image, eliminating empty gaps or broken margins.
+2. **Asymmetric Editorial Layout**:
+   * Center the site layout on a highly balanced canvas.
+   * Establish exquisite typography pairing: *Playfair Display* for classic, editorial headlines with generous tracking, and *DM Sans* for highly legible body paragraphs (constrained to `65ch`).
+3. **Responsive Visual Polish**:
+   * Add beautiful border-radius curves, subtle shadow depths, and hover scaling on images.
 
-### Collections:
-*   **Sites**: The core tenant configuration.
-    *   `slug` (String, Unique): e.g., "travel", "tech".
-    *   `name` (String): e.g., "Travel Explorer".
-    *   `theme` (Object): CSS color variables (`primary`, `secondary`, `accent`, `text`, `bg`, `surface`).
-    *   `seo` (Object): Title, description.
-*   **Categories**:
-    *   `siteId` (ObjectId, ref: 'Site'): Hard isolation boundary.
-    *   `slug` (String)
-    *   `name` (String)
-*   **Posts**:
-    *   `siteId` (ObjectId, ref: 'Site'): Hard isolation boundary.
-    *   `categoryId` (ObjectId, ref: 'Category')
-    *   `slug` (String, Unique per site)
-    *   `title` (String)
-    *   `content` (String) - Rich HTML from Quill.js.
+---
 
-## 2. Backend API Design (Express)
-The backend will expose endpoints that strictly filter by the tenant/site slug.
+## Part 2: Unified Tabbed Workspace Admin Dashboard
+1. **Tab Consolidated Interface**:
+   * Replace the monolithic admin dashboard with a modern, tabbed workspace layout:
+     * **Tab 1: Creative Studio (Write & Edit)**: Full-screen post creator, media file inputs, category selectors, and SEO configurations.
+     * **Tab 2: Tenant Settings (Themes & SEO)**: Manage site themes, colors, descriptions, and site configurations.
+     * **Tab 3: Crawler & Bot Audits (Live Logs)**: Real-time traffic, reverse DNS logs, search engine crawling statistics.
+2. **Responsive Dashboard UX**:
+   * Upgrade navigation to look extremely polished, responsive, and tactile.
 
-*   `GET /api/sites/:siteSlug` - Retrieves the site configuration, theme, and SEO data.
-*   `GET /api/sites/:siteSlug/posts` - Retrieves all posts belonging to the specific site.
-*   `GET /api/sites/:siteSlug/posts/:postSlug` - Retrieves a single post.
-*   `GET /api/sites/:siteSlug/categories` - Retrieves site categories.
+---
 
-*(Admin endpoints will also be created for CRUD operations on all the above).*
-
-## 3. Frontend Architecture (React)
-The frontend will dynamically detect the site being requested and adjust its context.
-
-### Site Resolution
-1. React Router catches the first URL segment: `/:siteSlug/*`
-2. A `SiteProvider` (Context) extracts `siteSlug`.
-3. It fetches `GET /api/sites/:siteSlug`.
-4. It injects the returned theme into the document root:
-   `document.documentElement.style.setProperty('--primary', site.theme.primary);`
-
-### Routing Structure
-*   `/:siteSlug` - Renders the site's Home/Blog feed.
-*   `/:siteSlug/post/:postSlug` - Renders a specific article.
-*   `/:siteSlug/category/:categorySlug` - Filters articles by category.
-*   `/admin` - A global admin dashboard to manage sites and write posts.
-
-## 4. Admin Dashboard
-Currently, the admin dashboard is a static HTML file served by Express. We will upgrade this to manage multiple sites.
-*   **Site Management**: Create new sites, edit slugs, set brand colors.
-*   **Post Management**: Assign posts to specific sites, continue using Quill.js for rich text.
+## Part 3: Search Indexation & Diagnostics
+1. **Sitemap and Robots Dynamic Previews**:
+   * Provide immediate visual feedback for dynamic XML sitemaps and search crawl rules per site inside the site settings.

@@ -107,9 +107,18 @@ const PostSchema = new mongoose.Schema({
 
 PostSchema.index({ siteId: 1, slug: 1 }, { unique: true });
 
+const BotLogSchema = new mongoose.Schema({
+  ip: { type: String, default: '' },
+  userAgent: { type: String, default: '' },
+  botType: { type: String, default: '' },
+  url: { type: String, default: '' },
+  siteSlug: { type: String, default: '' },
+}, { timestamps: true });
+
 const Site = mongoose.model('Site', SiteSchema);
 const Category = mongoose.model('Category', CategorySchema);
 const Post = mongoose.model('Post', PostSchema);
+const BotLog = mongoose.model('BotLog', BotLogSchema);
 
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
   if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) return res.status(503).json({ error: 'JWT_SECRET is not configured' });
@@ -390,6 +399,29 @@ app.get('/api/sites/:siteSlug/feed.xml', async (req, res) => {
   const base = site.domains?.[0] ? `https://${site.domains[0]}` : `${process.env.FRONTEND_URL || ''}/${site.slug}`;
   const items = posts.map(post => `<item><title><![CDATA[${post.title}]]></title><link>${base}/post/${post.slug}</link><description><![CDATA[${post.excerpt || post.content.slice(0, 240)}]]></description><pubDate>${(post.publishedAt || post.createdAt).toUTCString()}</pubDate></item>`).join('');
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title><![CDATA[${site.name}]]></title><link>${base}</link><description><![CDATA[${site.seo?.description || site.name}]]></description>${items}</channel></rss>`);
+});
+
+// ------------------------------------------------------------------
+// Crawler Bot Log Tracking
+// ------------------------------------------------------------------
+app.post('/api/public/bot-logs', async (req, res) => {
+  try {
+    const { ip, userAgent, botType, url, siteSlug } = req.body;
+    const log = new BotLog({ ip, userAgent, botType, url, siteSlug });
+    await log.save();
+    res.status(201).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to record bot log' });
+  }
+});
+
+app.get('/api/admin/bot-logs', requireAdmin, async (req, res) => {
+  try {
+    const logs = await BotLog.find().sort({ createdAt: -1 }).limit(100);
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve bot logs' });
+  }
 });
 
 // ------------------------------------------------------------------

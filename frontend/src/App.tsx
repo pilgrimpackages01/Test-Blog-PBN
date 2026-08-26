@@ -4,7 +4,7 @@ import { BookOpen, Loader2, Search, ArrowUpRight, CalendarDays } from 'lucide-re
 import React, { useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface Post {
   _id: string;
@@ -52,7 +52,7 @@ const SiteLayout = ({ children }: { children: React.ReactNode }) => {
           <h1 className="text-xl font-bold tracking-tight">{site.name}</h1>
         </div>
         <div className="hidden sm:flex items-center gap-6">
-          <a href={`${API_URL}/`} className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-xs font-bold uppercase tracking-widest text-white no-underline">
+          <a href="/admin" className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-xs font-bold uppercase tracking-widest text-white no-underline">
             Admin Publisher
           </a>
         </div>
@@ -95,9 +95,40 @@ const PostArticle = () => {
   if (!site) return null;
   const backLink = getSiteLink(site.slug, isSharedHost, '');
 
-  if (error) return <div className="p-10 text-center text-text-muted"><h1 className="text-2xl font-bold text-text-main">Article not found</h1><Link to={backLink} className="text-primary font-bold">Back to articles</Link></div>;
-  if (!post) return <div className="p-10 text-center text-text-muted">Loading article...</div>;
-  return <article className="max-w-3xl mx-auto p-6 md:p-10"><Link to={backLink} className="text-primary font-bold">Back to articles</Link>{post.coverImage && <img src={post.coverImage} alt="" className="w-full aspect-video object-cover mt-8" />}{post.coverImage && <img src={post.coverImage} alt="" className="hidden" referrerPolicy="no-referrer" /> /* pre-render asset prefetch fallback if needed */}<h1 className="text-4xl font-black text-text-main mt-8 mb-6">{post.title}</h1><div className="prose max-w-none text-text-main leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }} /></article>;
+  if (error) return <div className="p-10 text-center text-text-muted"><h1 className="text-2xl font-bold text-text-main mb-4">Article not found</h1><Link to={backLink} className="px-4 py-2 bg-primary text-white font-bold rounded-xl shadow-md">Back to articles</Link></div>;
+  if (!post) return <div className="p-10 text-center text-text-muted flex items-center justify-center gap-2"><Loader2 className="animate-spin text-primary w-5 h-5" /> Loading article...</div>;
+  return (
+    <article className="max-w-3xl mx-auto p-6 md:py-16 md:px-10">
+      <Link to={backLink} className="inline-flex items-center gap-2 text-primary font-bold text-sm hover:underline mb-8 group transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" className="transition-transform group-hover:-translate-x-1"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to articles
+      </Link>
+      
+      {post.coverImage && (
+        <div className="rounded-2xl overflow-hidden shadow-lg mb-10 border border-border">
+          <img src={post.coverImage} alt="" className="w-full aspect-video object-cover transition-transform hover:scale-105 duration-700" />
+        </div>
+      )}
+      {post.coverImage && <img src={post.coverImage} alt="" className="hidden" referrerPolicy="no-referrer" />}
+      
+      <header className="mb-10">
+        <h1 className="text-4xl md:text-5xl font-bold text-text-main tracking-tight leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
+          {post.title}
+        </h1>
+        <div className="flex items-center gap-4 text-xs font-semibold text-text-muted mt-6 border-b border-border pb-6 uppercase tracking-wider">
+          <span>By {post.author || site.name}</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-border" />
+          <span>{new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+        </div>
+      </header>
+      
+      <div 
+        className="prose max-w-none text-text-main leading-relaxed text-base md:text-lg font-sans" 
+        style={{ maxWidth: '65ch' }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }} 
+      />
+    </article>
+  );
 };
 
 const BlogFeed = () => {
@@ -143,7 +174,7 @@ const BlogFeed = () => {
         ) : (
           <div className="space-y-8">
             {featuredPost && !search && (
-              <article className="featured-story">
+              <article className={`featured-story ${featuredPost.coverImage ? 'has-image' : 'no-image'}`}>
                 <div className="featured-copy">
                   <p className="eyebrow">Featured story</p>
                   <h3><Link to={getSiteLink(site.slug, isSharedHost, `/post/${featuredPost.slug}`)}>{featuredPost.title}</Link></h3>
@@ -154,7 +185,7 @@ const BlogFeed = () => {
               </article>
             )}
             {visiblePosts.slice(search ? 0 : 1).map((post) => (
-              <article key={post._id} className="story-row">
+              <article key={post._id} className={`story-row ${post.coverImage ? 'has-image' : 'no-image'}`}>
                 {post.coverImage && <img src={post.coverImage} alt="" referrerPolicy="no-referrer" />}
                 <div>
                   <div className="story-meta">

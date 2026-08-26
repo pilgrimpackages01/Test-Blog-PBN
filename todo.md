@@ -1,38 +1,20 @@
-# Multi-Tenant Migration TODO List
+# OmniCMS Implementation Task List
 
-This checklist covers the step-by-step implementation of the `plan.md` architecture.
+## Step 1: Fix Visual Layout & Empty Column Gaps (Frontend)
+- [x] Add conditional `.has-image` and `.no-image` classes to `.featured-story` in `frontend/src/App.tsx`.
+- [x] Add conditional `.has-image` and `.no-image` classes to `.story-row` in `frontend/src/App.tsx`.
+- [x] Update `frontend/src/index.css` to define grid behaviors for `.no-image` states, ensuring text gracefully spans full width.
+- [x] Elevate design styling: add refined shadows, modern border curves, and letter spacing to the public blog feed.
 
-## Phase 1: Database Redesign (Backend)
-- [x] Remove the old `DataModel` in `backend/server.ts`.
-- [x] Create a robust `Site` Mongoose schema (slug, name, theme colors, seo).
-- [x] Create a `Category` Mongoose schema (siteId, name, slug).
-- [x] Create a `Post` Mongoose schema (siteId, categoryId, title, slug, content, publishedAt).
-- [x] Ensure indexes are set up on `slug` and `siteId` for fast querying.
+## Step 2: Build Unified Tabbed Workspace in Admin Panel (Backend/Public UI)
+- [x] Refactor the admin dashboard in `backend/public/index.html` to introduce Tab navigation (Publishing, Sites/Themes, Bot Audit).
+- [x] Group existing forms into separate, clean tab contents:
+  * **Tab 1**: "Publishing Studio" (Post Writer and list of published articles).
+  * **Tab 2**: "Site Configuration" (Connecting new sites, themes, branding).
+  * **Tab 3**: "Search Crawler & Bot Audits" (Traffic metrics and real-time reverse DNS audits).
+- [x] Ensure perfect tab-state synchronization and visually elegant buttons.
 
-## Phase 2: Backend API Expansion
-- [x] Implement `GET /api/sites/:siteSlug` to serve site config.
-- [x] Implement `GET /api/sites/:siteSlug/posts` to fetch site-specific posts.
-- [x] Implement `GET /api/sites/:siteSlug/posts/:postSlug` for single posts.
-- [x] Implement Admin REST endpoints (`POST /api/admin/sites`, `POST /api/admin/posts`, etc.).
-
-## Phase 3: Frontend Setup & Context
-- [x] Install `react-router-dom` in the frontend for client-side routing.
-- [x] Create a `SiteContext.tsx` to handle the fetching of site config based on the URL.
-- [x] Create a utility function `injectTheme(theme)` that writes CSS variables to `document.documentElement.style`.
-- [x] Ensure `index.css` ONLY uses light theme colors and removes any dark mode overrides.
-
-## Phase 4: Frontend UI Components
-- [x] Create `/:siteSlug` route (Home / Blog Feed).
-- [x] Create `/:siteSlug/post/:postSlug` route (Single Article view).
-- [x] Create a reusable `Header` component that dynamically uses `site.name` and `--primary` colors.
-- [x] Build a 404 "Site Not Found" fallback component.
-
-## Phase 5: Admin Dashboard Evolution
-- [x] Refactor the existing static HTML `/admin` dashboard into a proper React app (or expand the current HTML/JS to support site selection).
-- [x] Add a form to create/edit Sites (specifying slug, name, and color hex codes).
-- [x] Update the Quill.js editor form to require a `siteId` before publishing a post.
-- [x] Ensure Admin UI has no Radix dependencies and relies purely on Tailwind CSS.
-
-## Phase 6: Testing & Cleanup
-- [x] Test cross-tenant data leakage (ensure Site A cannot see Site B's posts).
-- [x] Test CORS and Environment variables for Vercel/Cloudflare + Render deployment readiness.
+## Step 3: Enhance Post Rendering & Typography
+- [x] Apply the standard `Playfair Display` display font to post headlines and titles.
+- [x] Apply maximum character width boundaries (`max-w-3xl prose mx-auto`) to the article reader to guarantee readability.
+- [x] Run compiler and verify all modules are building beautifully.
