@@ -164,12 +164,71 @@ function escapeXml(value: string) {
   }[character] || character));
 }
 
-// Global sitemap index for crawlers that access the backend directly.
+async function resolveSiteFromRequest(req: express.Request) {
+  const rawHostname = String(
+    req.query.hostname ||
+    req.headers['x-forwarded-host'] ||
+    req.headers.host ||
+    ''
+  ).trim().toLowerCase();
+
+  const hostname = rawHostname.split(':')[0]; // strip port if present
+
+  if (!hostname || hostname === 'localhost' || hostname === '127.0.0.1' || hostname === 'omnicms-backend.vercel.app') {
+    return null;
+  }
+
+  // 1. Check direct match in site's domains array
+  let site = await Site.findOne({ domains: hostname });
+  if (site) return site;
+
+  // 2. Check if hostname matches any site slug (e.g. hostname query parameter)
+  site = await Site.findOne({ slug: hostname });
+  if (site) return site;
+
+  return null;
+}
+
+function renderSiteSitemap(site: any, posts: any[], req: express.Request) {
+  const siteUrl = getSiteUrl(site, req);
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${escapeXml(`${siteUrl}/${site.slug}`)}</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>`;
+
+  for (const post of posts) {
+    xml += `
+  <url>
+    <loc>${escapeXml(`${siteUrl}/${site.slug}/${post.slug}`)}</loc>
+    <lastmod>${post.publishedAt ? post.publishedAt.toISOString() : (post.updatedAt ? post.updatedAt.toISOString() : new Date().toISOString())}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`;
+  }
+
+  xml += `
+</urlset>`;
+  return xml;
+}
+
+// Global or Tenant-Specific sitemap.xml
 app.get('/sitemap.xml', async (req, res) => {
-  const sites = await Site.find({}, { slug: 1, domains: 1 }).sort({ slug: 1 });
-  const sitemapUrls = sites.map(site => `  <sitemap>
-    <loc>${escapeXml(`${getSiteUrl(site, req)}/${site.slug}/sitemap.xml`)}</loc>
-    <lastmod>${site.updatedAt ? site.updatedAt.toISOString() : new Date().toISOString()}</lastmod>
+  // Check if request is coming from a specific site domain (e.g. omnicms3.pages.dev)
+  const site = await resolveSiteFromRequest(req);
+  if (site) {
+    const posts = await Post.find({ siteId: site._id, status: 'published' }).sort({ publishedAt: -1, createdAt: -1 });
+    const xml = renderSiteSitemap(site, posts, req);
+    return res.type('application/xml').send(xml);
+  }
+
+  // Otherwise, render the global sitemap index for crawlers accessing the backend directly
+  const sites = await Site.find({}, { slug: 1, domains: 1, updatedAt: 1 }).sort({ slug: 1 });
+  const sitemapUrls = sites.map(s => `  <sitemap>
+    <loc>${escapeXml(`${getSiteUrl(s, req)}/${s.slug}/sitemap.xml`)}</loc>
+    <lastmod>${s.updatedAt ? s.updatedAt.toISOString() : new Date().toISOString()}</lastmod>
   </sitemap>`).join('\n');
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -179,10 +238,21 @@ ${sitemapUrls}
   res.type('application/xml').send(xml);
 });
 
-// Global robots file lists every tenant sitemap as well as the sitemap index.
+// Global or Tenant-Specific robots.txt
 app.get('/robots.txt', async (req, res) => {
+  const site = await resolveSiteFromRequest(req);
+  if (site) {
+    const siteUrl = getSiteUrl(site, req);
+    return res.type('text/plain').send(`User-agent: *
+Allow: /
+
+Sitemap: ${siteUrl}/sitemap.xml
+Sitemap: ${siteUrl}/${site.slug}/sitemap.xml`);
+  }
+
+  // Global robots file for the central backend
   const sites = await Site.find({}, { slug: 1, domains: 1 }).sort({ slug: 1 });
-  const sitemapUrls = sites.map(site => `${getSiteUrl(site, req)}/${site.slug}/sitemap.xml`).join('\n');
+  const sitemapUrls = sites.map(s => `${getSiteUrl(s, req)}/${s.slug}/sitemap.xml`).join('\n');
   const globalSitemap = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/sitemap.xml`;
 
   res.type('text/plain').send(`User-agent: *
@@ -191,51 +261,29 @@ Allow: /
 Sitemap: ${globalSitemap}${sitemapUrls ? `\n${sitemapUrls.split('\n').map(url => `Sitemap: ${url}`).join('\n')}` : ''}`);
 });
 
-// Sitemap Route
+// Sitemap Route (Tenant by slug)
 app.get('/:siteSlug/sitemap.xml', async (req, res) => {
   const { siteSlug } = req.params;
   const site = await Site.findOne({ slug: siteSlug });
   if (!site) return res.status(404).send('Site not found');
 
-  const posts = await Post.find({ siteId: site._id, status: 'published' });
-  
-  const siteUrl = getSiteUrl(site, req);
-
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${escapeXml(`${siteUrl}/${siteSlug}`)}</loc>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>`;
-
-  for (const post of posts) {
-    xml += `
-  <url>
-    <loc>${escapeXml(`${siteUrl}/${siteSlug}/${post.slug}`)}</loc>
-    <lastmod>${post.publishedAt ? post.publishedAt.toISOString() : new Date().toISOString()}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>`;
-  }
-
-  xml += `
-</urlset>`;
+  const posts = await Post.find({ siteId: site._id, status: 'published' }).sort({ publishedAt: -1, createdAt: -1 });
+  const xml = renderSiteSitemap(site, posts, req);
   res.type('application/xml').send(xml);
 });
 
-// Robots.txt Route
+// Robots.txt Route (Tenant by slug)
 app.get('/:siteSlug/robots.txt', async (req, res) => {
   const { siteSlug } = req.params;
   const site = await Site.findOne({ slug: siteSlug });
   if (!site) return res.status(404).send('Site not found');
 
   const siteUrl = getSiteUrl(site, req);
-  
   res.type('text/plain').send(`User-agent: *
 Allow: /
 
-Sitemap: ${siteUrl}/${siteSlug}/sitemap.xml`);
+Sitemap: ${siteUrl}/${siteSlug}/sitemap.xml
+Sitemap: ${siteUrl}/sitemap.xml`);
 });
 
 // Resolve a tenant from the browser's hostname for custom-domain deployments.
