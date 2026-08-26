@@ -64,8 +64,12 @@ const SiteLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+const getSiteLink = (siteSlug: string, isSharedHost: boolean, path: string = '') => {
+  return isSharedHost ? `/${siteSlug}${path}` : path || '/';
+};
+
 const PostArticle = () => {
-  const { site } = useSite();
+  const { site, isSharedHost } = useSite();
   const { postSlug } = useParams();
   const [post, setPost] = useState<Post | null>(null);
   const [error, setError] = useState(false);
@@ -88,13 +92,16 @@ const PostArticle = () => {
     return () => { robots?.remove(); };
   }, [post]);
 
-  if (error) return <div className="p-10 text-center text-text-muted"><h1 className="text-2xl font-bold text-text-main">Article not found</h1><Link to={`/${site.slug}`} className="text-primary font-bold">Back to articles</Link></div>;
+  if (!site) return null;
+  const backLink = getSiteLink(site.slug, isSharedHost, '');
+
+  if (error) return <div className="p-10 text-center text-text-muted"><h1 className="text-2xl font-bold text-text-main">Article not found</h1><Link to={backLink} className="text-primary font-bold">Back to articles</Link></div>;
   if (!post) return <div className="p-10 text-center text-text-muted">Loading article...</div>;
-  return <article className="max-w-3xl mx-auto p-6 md:p-10"><Link to={`/${site.slug}`} className="text-primary font-bold">Back to articles</Link>{post.coverImage && <img src={post.coverImage} alt="" className="w-full aspect-video object-cover mt-8" />}<h1 className="text-4xl font-black text-text-main mt-8 mb-6">{post.title}</h1><div className="prose max-w-none text-text-main leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }} /></article>;
+  return <article className="max-w-3xl mx-auto p-6 md:p-10"><Link to={backLink} className="text-primary font-bold">Back to articles</Link>{post.coverImage && <img src={post.coverImage} alt="" className="w-full aspect-video object-cover mt-8" />}{post.coverImage && <img src={post.coverImage} alt="" className="hidden" referrerPolicy="no-referrer" /> /* pre-render asset prefetch fallback if needed */}<h1 className="text-4xl font-black text-text-main mt-8 mb-6">{post.title}</h1><div className="prose max-w-none text-text-main leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }} /></article>;
 };
 
 const BlogFeed = () => {
-  const { site } = useSite();
+  const { site, isSharedHost } = useSite();
   const [posts, setPosts] = useState<Post[]>([]);
   const [fetching, setFetching] = useState(true);
   const [search, setSearch] = useState('');
@@ -135,11 +142,30 @@ const BlogFeed = () => {
           </div>
         ) : (
           <div className="space-y-8">
-            {featuredPost && !search && <article className="featured-story"><div className="featured-copy"><p className="eyebrow">Featured story</p><h3><Link to={`/${site.slug}/post/${featuredPost.slug}`}>{featuredPost.title}</Link></h3><p>{featuredPost.excerpt || featuredPost.content.replace(/<[^>]+>/g, '').slice(0, 180)}</p><Link to={`/${site.slug}/post/${featuredPost.slug}`} className="story-link">Read story <ArrowUpRight size={17} /></Link></div>{featuredPost.coverImage && <img src={featuredPost.coverImage} alt="" />}</article>}
+            {featuredPost && !search && (
+              <article className="featured-story">
+                <div className="featured-copy">
+                  <p className="eyebrow">Featured story</p>
+                  <h3><Link to={getSiteLink(site.slug, isSharedHost, `/post/${featuredPost.slug}`)}>{featuredPost.title}</Link></h3>
+                  <p>{featuredPost.excerpt || featuredPost.content.replace(/<[^>]+>/g, '').slice(0, 180)}</p>
+                  <Link to={getSiteLink(site.slug, isSharedHost, `/post/${featuredPost.slug}`)} className="story-link">Read story <ArrowUpRight size={17} /></Link>
+                </div>
+                {featuredPost.coverImage && <img src={featuredPost.coverImage} alt="" referrerPolicy="no-referrer" />}
+              </article>
+            )}
             {visiblePosts.slice(search ? 0 : 1).map((post) => (
               <article key={post._id} className="story-row">
-                {post.coverImage && <img src={post.coverImage} alt="" />}
-                <div><div className="story-meta"><CalendarDays size={15} />{new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}<span>{post.author || site.name}</span></div><h3><Link to={`/${site.slug}/post/${post.slug}`}>{post.title}</Link></h3><p>{post.excerpt || post.content.replace(/<[^>]+>/g, '').slice(0, 180)}...</p><Link to={`/${site.slug}/post/${post.slug}`} className="story-link">Continue reading <ArrowUpRight size={17} /></Link></div>
+                {post.coverImage && <img src={post.coverImage} alt="" referrerPolicy="no-referrer" />}
+                <div>
+                  <div className="story-meta">
+                    <CalendarDays size={15} />
+                    {new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                    <span>{post.author || site.name}</span>
+                  </div>
+                  <h3><Link to={getSiteLink(site.slug, isSharedHost, `/post/${post.slug}`)}>{post.title}</Link></h3>
+                  <p>{post.excerpt || post.content.replace(/<[^>]+>/g, '').slice(0, 180)}...</p>
+                  <Link to={getSiteLink(site.slug, isSharedHost, `/post/${post.slug}`)} className="story-link">Continue reading <ArrowUpRight size={17} /></Link>
+                </div>
               </article>
             ))}
 

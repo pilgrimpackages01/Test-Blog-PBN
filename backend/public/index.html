@@ -19,14 +19,14 @@
         --color-accent: var(--accent);
       }
       :root {
-        --primary: #4f46e5;
-        --primary-hover: #4338ca;
-        --bg: #eef2ff;
+        --primary: #6366f1;
+        --primary-hover: #4f46e5;
+        --bg: #f8fafc;
         --surface: #ffffff;
-        --text-main: #1e293b;
+        --text-main: #0f172a;
         --text-muted: #64748b;
-        --border: #e0e7ff;
-        --accent: #fbbf24;
+        --border: #e2e8f0;
+        --accent: #10b981;
       }
       .ql-toolbar {
         border-color: var(--border) !important;
@@ -75,8 +75,20 @@
       @media (max-width: 1023px) {
         #postsList { height: 22rem; }
       }
-      .dashboard-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 1rem 1.25rem; box-shadow: 0 8px 24px rgba(30, 41, 59, .06); }
-      .dashboard-stat strong { display: block; font-size: 1.65rem; line-height: 1; color: var(--text-main); }
+      .dashboard-stat { 
+        background: var(--surface); 
+        border: 1px solid var(--border); 
+        border-radius: 1rem; 
+        padding: 1.25rem 1.5rem; 
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); 
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .dashboard-stat:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+        border-color: var(--primary);
+      }
+      .dashboard-stat strong { display: block; font-size: 1.85rem; line-height: 1; color: var(--text-main); font-weight: 800; }
       .dashboard-stat span { display: block; margin-top: .4rem; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
     </style>
   </head>
@@ -154,7 +166,7 @@
         </div>
 
         <form id="dataForm" class="space-y-6 flex-1 flex flex-col">
-          <div class="space-y-2">
+          <div id="singleSiteContainer" class="space-y-2">
             <label class="block text-xs font-bold text-primary uppercase tracking-wider">Select Site</label>
             <select 
               id="siteSelect" 
@@ -339,7 +351,16 @@
       }
       document.getElementById('refreshPosts').addEventListener('click', loadPosts);
       document.getElementById('targetMode').addEventListener('change', (event) => {
-        document.getElementById('multiSiteTargets').classList.toggle('hidden', event.target.value !== 'selected');
+        const targetVal = event.target.value;
+        const isOne = targetVal === 'one';
+        document.getElementById('singleSiteContainer').classList.toggle('hidden', !isOne);
+        const select = document.getElementById('siteSelect');
+        if (isOne) {
+          select.setAttribute('required', '');
+        } else {
+          select.removeAttribute('required');
+        }
+        document.getElementById('multiSiteTargets').classList.toggle('hidden', targetVal !== 'selected');
       });
       document.getElementById('uploadImage').addEventListener('click', async () => {
         const file = document.getElementById('imageFile').files[0];

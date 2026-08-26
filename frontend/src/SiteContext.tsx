@@ -27,9 +27,10 @@ interface SiteContextType {
   site: SiteConfig | null;
   loading: boolean;
   error: string | null;
+  isSharedHost: boolean;
 }
 
-const SiteContext = createContext<SiteContextType>({ site: null, loading: true, error: null });
+const SiteContext = createContext<SiteContextType>({ site: null, loading: true, error: null, isSharedHost: true });
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -41,6 +42,12 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const location = useLocation();
   // Use the path for local/multi-site previews and the hostname for custom domains.
   const siteSlug = location.pathname.split('/')[1];
+
+  const hostname = window.location.hostname;
+  const isSharedHost = hostname === 'localhost'
+    || hostname === '127.0.0.1'
+    || hostname.endsWith('.pages.dev')
+    || hostname.endsWith('.run.app'); // Include dev/shared run.app domains as shared
 
   useEffect(() => {
     // If there's no site slug (e.g. at root '/'), we either redirect or show an error
@@ -54,11 +61,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
       try {
-        const hostname = window.location.hostname;
-        const isSharedFrontendHost = hostname === 'localhost'
-          || hostname === '127.0.0.1'
-          || hostname.endsWith('.pages.dev');
-        const endpoint = siteSlug && isSharedFrontendHost
+        const endpoint = siteSlug && isSharedHost
           ? `${API_URL}/api/sites/${siteSlug}`
           : `${API_URL}/api/sites/resolve?hostname=${encodeURIComponent(hostname)}`;
         const res = await fetch(endpoint);
@@ -91,10 +94,10 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     fetchSite();
-  }, [siteSlug]);
+  }, [siteSlug, isSharedHost, hostname]);
 
   return (
-    <SiteContext.Provider value={{ site, loading, error }}>
+    <SiteContext.Provider value={{ site, loading, error, isSharedHost }}>
       {children}
     </SiteContext.Provider>
   );
