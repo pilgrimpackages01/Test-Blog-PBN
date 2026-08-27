@@ -35,6 +35,32 @@ if (cloudinaryConfigured) {
 app.use(cors());
 app.use(express.json());
 
+// In-Memory TTL Cache (No Redis / "Radish" required!)
+class SimpleMemoryCache {
+  private cache = new Map<string, { data: any; expiresAt: number }>();
+
+  set(key: string, data: any, ttlSeconds: number = 300) {
+    const expiresAt = Date.now() + ttlSeconds * 1000;
+    this.cache.set(key, { data, expiresAt });
+  }
+
+  get(key: string): any | null {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    if (Date.now() > item.expiresAt) {
+      this.cache.delete(key);
+      return null;
+    }
+    return item.data;
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+}
+
+const memoryCache = new SimpleMemoryCache();
+
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -365,11 +391,22 @@ Sitemap: ${globalSitemap}${sitemapUrls ? `\n${sitemapUrls.split('\n').map(url =>
 app.get('/:siteSlug/sitemap.xml', async (req, res) => {
   const { siteSlug } = req.params;
   recordBotHit(req, siteSlug);
+
+  const cacheKey = `sitemap:${siteSlug}`;
+  const cached = memoryCache.get(cacheKey);
+  if (cached) {
+    res.set('Cache-Control', 'public, max-age=3600, s-maxage=86400');
+    return res.type('application/xml').send(cached);
+  }
+
   const site = await Site.findOne({ slug: siteSlug });
   if (!site) return res.status(404).send('Site not found');
 
   const posts = await Post.find({ siteId: site._id, status: 'published' }).sort({ publishedAt: -1, createdAt: -1 });
   const xml = renderSiteSitemap(site, posts, req);
+
+  memoryCache.set(cacheKey, xml, 600);
+  res.set('Cache-Control', 'public, max-age=3600, s-maxage=86400');
   res.type('application/xml').send(xml);
 });
 
@@ -517,6 +554,7 @@ app.delete('/api/admin/sites/:slug', async (req, res) => {
     await Post.deleteMany({ siteId: site._id });
     await Category.deleteMany({ siteId: site._id });
     await site.deleteOne();
+    memoryCache.clear();
 
     res.status(204).end();
   } catch (err) {
@@ -540,6 +578,7 @@ app.post('/api/admin/sites', async (req, res) => {
       { name, domains: normalizedDomains, theme, seo },
       { new: true, upsert: true }
     );
+    memoryCache.clear();
     res.json(site);
   } catch (err) {
     console.error("Error saving site:", err);
@@ -621,6 +660,7 @@ app.post('/api/admin/posts', async (req, res) => {
     for (const site of sites) {
       posts.push(await Post.create({ siteId: site._id, categoryId, title, slug, content: applyLinkPolicy(content, linkPolicy), linkPolicy, robots, excerpt, coverImage, coverImagePublicId, author, tags, status, scheduledFor, publishedAt: status === 'published' ? new Date() : undefined, seoTitle, seoDescription }));
     }
+    memoryCache.clear();
     res.status(201).json(posts);
   } catch (err) {
     console.error(err);
@@ -640,6 +680,7 @@ app.patch('/api/admin/posts/:postId', async (req, res) => {
     if (updates.coverImagePublicId && existingPost.coverImagePublicId && updates.coverImagePublicId !== existingPost.coverImagePublicId && cloudinaryConfigured) {
       await cloudinary.uploader.destroy(existingPost.coverImagePublicId, { resource_type: 'image' });
     }
+    memoryCache.clear();
     res.json(post);
   } catch (err) { res.status(400).json({ error: 'Could not update post' }); }
 });
@@ -658,6 +699,7 @@ app.delete('/api/admin/posts/:postId', async (req, res) => {
     }
   }
   await post.deleteOne();
+  memoryCache.clear();
   res.status(204).end();
 });
 
