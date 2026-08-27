@@ -139,6 +139,55 @@ function applyLinkPolicy(content: string, linkPolicy: 'follow' | 'nofollow') {
   });
 }
 
+function detectBotType(userAgent: string): string | null {
+  if (!userAgent) return null;
+  const ua = userAgent.toLowerCase();
+  if (ua.includes('googlebot') || ua.includes('google-inspectiontool') || ua.includes('chrome-lighthouse') || ua.includes('google page speed')) return 'Googlebot';
+  if (ua.includes('bingbot') || ua.includes('msnbot') || ua.includes('bingpreview')) return 'Bingbot';
+  if (ua.includes('yandex')) return 'Yandex';
+  if (ua.includes('baiduspider')) return 'Baiduspider';
+  if (ua.includes('facebookexternalhit')) return 'FacebookBot';
+  if (ua.includes('twitterbot')) return 'TwitterBot';
+  if (ua.includes('linkedinbot')) return 'LinkedInBot';
+  if (ua.includes('gptbot') || ua.includes('chatgpt-user') || ua.includes('chatgpt')) return 'ChatGPT-Bot';
+  if (ua.includes('anthropic-ai') || ua.includes('claude')) return 'Anthropic-Bot';
+  if (ua.includes('perplexitybot')) return 'PerplexityBot';
+  if (ua.includes('applebot')) return 'Applebot';
+  if (ua.includes('duckduckbot')) return 'DuckDuckBot';
+  if (ua.includes('slurp') || ua.includes('yahoo')) return 'YahooBot';
+  if (ua.includes('bot') || ua.includes('crawler') || ua.includes('spider')) return 'Other Bot / Crawler';
+  return null;
+}
+
+async function recordBotHit(req: express.Request, siteSlug?: string) {
+  try {
+    const userAgent = req.headers['user-agent'] || '';
+    const botType = detectBotType(userAgent);
+    if (!botType) return; // Not a bot
+
+    const ip = (
+      req.headers['cf-connecting-ip'] ||
+      req.headers['x-forwarded-for'] ||
+      req.socket.remoteAddress ||
+      ''
+    ).toString().split(',')[0].trim();
+
+    const proto = req.headers['x-forwarded-proto'] || 'https';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || '';
+    const fullUrl = `${proto}://${host}${req.originalUrl || req.url}`;
+
+    await BotLog.create({
+      ip,
+      userAgent,
+      botType,
+      url: fullUrl,
+      siteSlug: siteSlug || ''
+    });
+  } catch (err) {
+    // Non-blocking log
+  }
+}
+
 // ------------------------------------------------------------------
 // Public API Routes (Tenant-scoped)
 // ------------------------------------------------------------------
@@ -218,6 +267,7 @@ function renderSiteSitemap(site: any, posts: any[], req: express.Request) {
 app.get('/sitemap.xml', async (req, res) => {
   // Check if request is coming from a specific site domain (e.g. omnicms3.pages.dev)
   const site = await resolveSiteFromRequest(req);
+  recordBotHit(req, site?.slug);
   if (site) {
     const posts = await Post.find({ siteId: site._id, status: 'published' }).sort({ publishedAt: -1, createdAt: -1 });
     const xml = renderSiteSitemap(site, posts, req);
@@ -241,6 +291,7 @@ ${sitemapUrls}
 // Global or Tenant-Specific robots.txt
 app.get('/robots.txt', async (req, res) => {
   const site = await resolveSiteFromRequest(req);
+  recordBotHit(req, site?.slug);
   if (site) {
     const siteUrl = getSiteUrl(site, req);
     return res.type('text/plain').send(`User-agent: *
@@ -264,6 +315,7 @@ Sitemap: ${globalSitemap}${sitemapUrls ? `\n${sitemapUrls.split('\n').map(url =>
 // Sitemap Route (Tenant by slug)
 app.get('/:siteSlug/sitemap.xml', async (req, res) => {
   const { siteSlug } = req.params;
+  recordBotHit(req, siteSlug);
   const site = await Site.findOne({ slug: siteSlug });
   if (!site) return res.status(404).send('Site not found');
 
@@ -275,6 +327,7 @@ app.get('/:siteSlug/sitemap.xml', async (req, res) => {
 // Robots.txt Route (Tenant by slug)
 app.get('/:siteSlug/robots.txt', async (req, res) => {
   const { siteSlug } = req.params;
+  recordBotHit(req, siteSlug);
   const site = await Site.findOne({ slug: siteSlug });
   if (!site) return res.status(404).send('Site not found');
 

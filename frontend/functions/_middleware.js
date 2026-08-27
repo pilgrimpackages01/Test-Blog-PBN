@@ -242,7 +242,8 @@ export async function onRequest(context) {
       });
 
       // Async logging to backend so crawlers don't wait
-      const backendUrl = env.VITE_API_URL || env.APP_URL;
+      const DEFAULT_BACKEND_URL = 'https://omnicms-backend.vercel.app';
+      const backendUrl = String(env.BACKEND_URL || env.VITE_API_URL || env.APP_URL || DEFAULT_BACKEND_URL).replace(/\/$/, '');
       if (backendUrl) {
         let botType = 'Other Bot / Crawler';
         const uaLower = (userAgent || '').toLowerCase();
