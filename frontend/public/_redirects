@@ -1,5 +1,6 @@
+/sitemap.xml https://omnicms-backend.vercel.app/sitemap.xml 301!
+/:siteSlug/sitemap.xml https://omnicms-backend.vercel.app/:siteSlug/sitemap.xml 301!
+/robots.txt https://omnicms-backend.vercel.app/robots.txt 301!
+/:siteSlug/robots.txt https://omnicms-backend.vercel.app/:siteSlug/robots.txt 301!
+
 /* /index.html 200
-/sitemap.xml https://omnicms-backend.vercel.app/sitemap.xml 200!
-/:siteSlug/sitemap.xml https://omnicms-backend.vercel.app/:siteSlug/sitemap.xml 200!
-/robots.txt https://omnicms-backend.vercel.app/robots.txt 200!
-/:siteSlug/robots.txt https://omnicms-backend.vercel.app/:siteSlug/robots.txt 200!
