@@ -225,25 +225,22 @@ async function recordBotHit(req: express.Request, siteSlug?: string) {
 
 function getSiteUrl(site: any, req: express.Request) {
   const configuredFrontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '');
-  
-  // PRIORITY 1: Use forwarded host if it's a frontend domain (not backend)
-  const forwardedHost = req.headers['x-forwarded-host'];
-  if (forwardedHost && 
-      typeof forwardedHost === 'string' &&
-      !forwardedHost.includes('vercel.app') && 
-      !forwardedHost.includes('localhost') && 
-      !forwardedHost.includes('127.0.0.1')) {
+
+  const forwardedHost = String(req.headers['x-forwarded-host'] || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase();
+  const configuredDomains = Array.isArray(site.domains)
+    ? site.domains.map((domain: string) => domain.replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase())
+    : [];
+
+  if (forwardedHost && configuredDomains.includes(forwardedHost)) {
     const protocol = req.headers['x-forwarded-proto'] || 'https';
-    console.log(`✅ Using forwarded host for ${site.slug}: ${forwardedHost}`);
     return `${protocol}://${forwardedHost}`;
   }
-  
-  // PRIORITY 2: Use site's first custom domain
-  const domain = site.domains && site.domains.length > 0
-    ? site.domains[0]
-    : configuredFrontendUrl;
-  
-  // PRIORITY 3: Fallback
+
+  const domain = site.domains && site.domains.length > 0 ? site.domains[0] : configuredFrontendUrl;
+
   if (!domain) {
     console.warn(`⚠️ No domain configured for site ${site.slug}`);
     return configuredFrontendUrl || 'https://example.com';
