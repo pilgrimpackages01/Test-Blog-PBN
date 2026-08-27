@@ -15,7 +15,9 @@ dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 const app = express();
 const PORT = Number(process.env.PORT || 3001);
 const JWT_SECRET = process.env.JWT_SECRET || 'development-only-change-me';
-const adminPasswordHash = process.env.ADMIN_PASSWORD ? bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10) : null;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@omnicms.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password123';
+const adminPasswordHash = bcrypt.hashSync(ADMIN_PASSWORD, 10);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 const cloudinaryConfigured = Boolean(
   process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET
@@ -36,13 +38,41 @@ app.use(express.json());
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI;
 
+async function seedDefaultSites() {
+  const count = await Site.countDocuments();
+  if (count === 0) {
+    const defaultSites = [
+      { slug: 'travel', name: 'Travel', domains: ['omnicms.pages.dev'] },
+      { slug: 'package', name: 'Package', domains: ['omnicms1.pages.dev'] },
+      { slug: 'design', name: 'Design', domains: ['omnicms2.pages.dev'] }
+    ];
+    for (const siteData of defaultSites) {
+      const site = await Site.create(siteData);
+      const category = await Category.create({ siteId: site._id, name: 'General', slug: 'general' });
+      await Post.create({
+        siteId: site._id,
+        categoryId: category._id,
+        slug: 'a-maintainable-approach-to-php-projects',
+        title: 'A Maintainable Approach to PHP Projects',
+        content: '<p>Welcome to our professional publishing platform. Here is how we build maintainable, scalable web applications with clean architecture and robust practices.</p>',
+        excerpt: 'Discover a maintainable approach to building robust PHP and web projects.',
+        author: 'OmniCMS Team',
+        status: 'published',
+        publishedAt: new Date()
+      });
+    }
+    console.log('✅ Seeded default 3 sites (travel, package, design) and sample posts.');
+  }
+}
+
 async function connectDB() {
   if (MONGODB_URI) {
     try {
       await mongoose.connect(MONGODB_URI);
       console.log('✅ Connected to MongoDB');
+      await seedDefaultSites();
       return;
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Failed to connect to MONGODB_URI (possibly an IP whitelist issue). Falling back to In-Memory database.', err.message);
     }
   }
@@ -51,6 +81,7 @@ async function connectDB() {
   const mongoServer = await MongoMemoryServer.create();
   await mongoose.connect(mongoServer.getUri());
   console.log('✅ Connected to In-Memory MongoDB');
+  await seedDefaultSites();
 }
 connectDB().catch(err => console.error('❌ MongoDB connection error:', err));
 
@@ -418,8 +449,8 @@ app.get('/api/sites/:siteSlug/posts/:postSlug', async (req, res) => {
 
 app.post('/api/admin/auth/login', async (req, res) => {
   const { email, password } = req.body;
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminEmail = ADMIN_EMAIL;
+  const adminPassword = ADMIN_PASSWORD;
   if (!adminEmail || !adminPassword) {
     return res.status(503).json({ error: 'Admin credentials are not configured on the server' });
   }
@@ -454,6 +485,24 @@ app.get('/api/admin/posts', async (req, res) => {
     const posts = await Post.find(query).populate('siteId', 'name slug').sort({ createdAt: -1 });
     res.json(posts);
   } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete a site (and associated data)
+app.delete('/api/admin/sites/:slug', async (req, res) => {
+  try {
+    const site = await Site.findOne({ slug: req.params.slug });
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+
+    // Delete associated data
+    await Post.deleteMany({ siteId: site._id });
+    await Category.deleteMany({ siteId: site._id });
+    await site.deleteOne();
+
+    res.status(204).end();
+  } catch (err) {
+    console.error("Error deleting site:", err);
     res.status(500).json({ error: 'Server error' });
   }
 });

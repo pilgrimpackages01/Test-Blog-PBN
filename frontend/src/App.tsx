@@ -60,6 +60,9 @@ const SiteLayout = ({ children }: { children: React.ReactNode }) => {
       <main className="flex-1">
         {children}
       </main>
+      <footer className="mt-12 text-center text-xs text-text-muted py-6 border-t border-border">
+        {site.name} Platform · Powered by <a href="https://qmlab-indol.vercel.app/" target="_blank" className="text-primary font-bold hover:underline">QM LABS</a>
+      </footer>
     </div>
   );
 };

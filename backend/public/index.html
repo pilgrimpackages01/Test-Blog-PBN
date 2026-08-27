@@ -7,7 +7,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
-    <title>Admin Dashboard | OmniCMS</title>
+    <title>OmniCMS | Multi-Tenant Publishing & SEO Dashboard</title>
+    <meta name="description" content="OmniCMS is a robust multi-tenant content management system optimized for managing multiple publication sites like travel, package, and design with real-time analytics and SEO publishing." />
+    <meta name="keywords" content="OmniCMS, multi-tenant CMS, SEO publishing, travel, package, design, web management" />
+    <meta property="og:title" content="OmniCMS | Multi-Tenant Publishing & SEO Dashboard" />
+    <meta property="og:description" content="Manage multiple publishing sites seamlessly with OmniCMS." />
+    <meta property="og:type" content="website" />
     <style type="text/tailwindcss">
       @theme {
         --color-primary: var(--primary);
@@ -109,14 +114,17 @@
         <a href="/" class="flex items-center gap-2 px-3 py-1.5 bg-primary-hover rounded-lg transition-colors text-xs font-bold uppercase tracking-widest border border-indigo-500 text-white no-underline">
           View Public Feed
         </a>
+        <button id="logoutBtn" class="hidden flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-xs font-bold uppercase tracking-widest text-white border-none cursor-pointer">
+          Logout
+        </button>
       </div>
     </header>
     
     <section id="loginPanel" class="flex-1 flex items-center justify-center p-6">
       <form id="loginForm" class="w-full max-w-md bg-surface border border-border p-8 rounded-3xl shadow-xl space-y-5">
-        <div><h2 class="text-2xl font-black text-text-main">Admin sign in</h2><p class="text-sm text-text-muted mt-1">Use your configured CMS email and password.</p></div>
-        <input id="loginEmail" type="email" required placeholder="Email address" class="w-full px-4 py-3 bg-bg rounded-xl outline-none border-2 border-transparent focus:border-primary" />
-        <input id="loginPassword" type="password" required placeholder="Password" class="w-full px-4 py-3 bg-bg rounded-xl outline-none border-2 border-transparent focus:border-primary" />
+        <div><h2 class="text-2xl font-black text-text-main">Admin sign in</h2><p class="text-sm text-text-muted mt-1">Default credentials pre-filled for immediate preview access.</p></div>
+        <input id="loginEmail" type="email" placeholder="Email address" class="w-full px-4 py-3 bg-bg rounded-xl outline-none border-2 border-transparent focus:border-primary" />
+        <input id="loginPassword" type="password" placeholder="Password" class="w-full px-4 py-3 bg-bg rounded-xl outline-none border-2 border-transparent focus:border-primary" />
         <button class="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold">Sign in</button>
         <p id="loginMessage" class="text-sm text-red-600 hidden"></p>
       </form>
@@ -294,6 +302,7 @@
             <p class="text-xs text-text-muted">One domain per line. Do not include http://.</p>
           </div>
           <button type="submit" class="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-colors">Save site connection</button>
+          <button type="button" id="deleteSiteBtn" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-colors hidden">Delete site</button>
           <div id="siteMessage" class="text-sm font-medium text-center hidden"></div>
         </form>
       </div>
@@ -386,6 +395,9 @@
         </div>
       </div>
 
+      <footer class="mt-12 text-center text-xs text-text-muted py-6 border-t border-border">
+        OmniCMS Multi-Tenant Platform · Powered by <a href="https://qmlab-indol.vercel.app/" target="_blank" class="text-primary font-bold hover:underline">QM LABS</a>
+      </footer>
       </div>
     </main>
 
@@ -398,9 +410,18 @@
       function showDashboard() {
         document.getElementById('loginPanel').classList.add('hidden');
         document.getElementById('dashboard').classList.remove('hidden');
+        document.getElementById('logoutBtn').classList.remove('hidden');
         loadSites();
         loadBotLogs();
       }
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.removeItem('omnicms_admin_token');
+        authToken = null;
+        document.getElementById('dashboard').classList.add('hidden');
+        document.getElementById('logoutBtn').classList.add('hidden');
+        document.getElementById('loginPanel').classList.remove('hidden');
+        document.getElementById('loginPassword').value = 'password123';
+      });
       document.getElementById('loginForm').addEventListener('submit', async (event) => {
         event.preventDefault();
         const message = document.getElementById('loginMessage');
@@ -467,7 +488,8 @@
       async function loadSites() {
         try {
           const res = await apiFetch('/api/admin/sites');
-          sites = await res.json();
+          const data = await res.json();
+          sites = Array.isArray(data) ? data : (data.sites || []);
           const select = document.getElementById('siteSelect');
           const managed = document.getElementById('managedSite');
           select.innerHTML = '<option value="" disabled selected>Select a site...</option>';
@@ -497,8 +519,29 @@
         document.getElementById('siteSlug').value = selected ? selected.slug : '';
         document.getElementById('siteSlug').readOnly = Boolean(selected);
         document.getElementById('siteDomains').value = selected ? (selected.domains || []).join('\n') : '';
+        document.getElementById('deleteSiteBtn').classList.toggle('hidden', !selected);
       }
       document.getElementById('managedSite').addEventListener('change', fillSiteForm);
+
+      document.getElementById('deleteSiteBtn').addEventListener('click', async () => {
+        const slug = document.getElementById('siteSlug').value;
+        if (!slug) return;
+        if (!confirm('Are you sure you want to delete this site and all its content?')) return;
+        
+        const message = document.getElementById('siteMessage');
+        try {
+          const response = await apiFetch('/api/admin/sites/' + slug, { method: 'DELETE' });
+          if (!response.ok) throw new Error('Delete failed');
+          message.textContent = 'Site deleted.';
+          message.className = 'text-sm font-medium text-center text-emerald-600 block';
+          await loadSites();
+          document.getElementById('managedSite').value = 'new';
+          fillSiteForm();
+        } catch (error) {
+          message.textContent = 'Could not delete site.';
+          message.className = 'text-sm font-medium text-center text-red-600 block';
+        }
+      });
       document.getElementById('siteForm').addEventListener('submit', async (event) => {
         event.preventDefault();
         const message = document.getElementById('siteMessage');
@@ -525,7 +568,8 @@
         const list = document.getElementById('postsList');
         try {
           const response = await apiFetch('/api/admin/posts');
-          const posts = await response.json();
+          const data = await response.json();
+          const posts = Array.isArray(data) ? data : (data.posts || []);
           document.getElementById('postCount').textContent = `(${posts.length})`;
           document.getElementById('statTotal').textContent = posts.length;
           document.getElementById('statPublished').textContent = posts.filter(post => post.status === 'published').length;
@@ -534,7 +578,8 @@
           
           // Posts per site breakdown
           const postsPerSite = posts.reduce((acc, post) => {
-            acc[post.siteId.name] = (acc[post.siteId.name] || 0) + 1;
+            const siteName = post.siteId?.name || 'Unknown Site';
+            acc[siteName] = (acc[siteName] || 0) + 1;
             return acc;
           }, {});
           document.getElementById('postsPerSiteBreakdown').innerHTML = Object.entries(postsPerSite).map(([name, count]) => `
@@ -545,11 +590,14 @@
 
           list.innerHTML = posts.length ? posts.map(post => `
             <div class="p-3 bg-bg rounded-xl border border-border">
-              <div class="flex items-start justify-between gap-3"><div><div class="font-bold text-text-main">${post.title}</div><div class="text-xs text-text-muted mt-1">${post.siteId.name} · ${post.status} · ${new Date(post.createdAt).toLocaleDateString()}</div></div><div class="flex gap-2"><button type="button" data-edit="${post._id}" class="text-xs font-bold text-primary">Edit</button><button type="button" data-delete="${post._id}" class="text-xs font-bold text-red-600">Delete</button></div></div>
+              <div class="flex items-start justify-between gap-3"><div><div class="font-bold text-text-main">${post.title}</div><div class="text-xs text-text-muted mt-1">${post.siteId?.name || 'Unknown Site'} · ${post.status} · ${new Date(post.createdAt).toLocaleDateString()}</div></div><div class="flex gap-2"><button type="button" data-edit="${post._id}" class="text-xs font-bold text-primary">Edit</button><button type="button" data-delete="${post._id}" class="text-xs font-bold text-red-600">Delete</button></div></div>
             </div>`).join('') : '<p class="text-text-muted">No posts published yet.</p>';
           list.querySelectorAll('[data-edit]').forEach(button => button.addEventListener('click', () => editPost(posts.find(post => post._id === button.dataset.edit))));
           list.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', async () => { if (confirm('Delete this post?')) { await apiFetch('/api/admin/posts/' + button.dataset.delete, { method: 'DELETE' }); loadPosts(); } }));
-        } catch (error) { list.innerHTML = '<p class="text-red-600">Could not load posts.</p>'; }
+        } catch (error) { 
+          console.error("Error loading posts:", error);
+          list.innerHTML = '<p class="text-red-600">Could not load posts.</p>'; 
+        }
       }
       document.getElementById('refreshPosts').addEventListener('click', loadPosts);
       
@@ -563,19 +611,20 @@
         
         try {
           const res = await apiFetch('/api/admin/categories');
-          const categories = await res.json();
+          const data = await res.json();
+          const categories = Array.isArray(data) ? data : (data.categories || []);
           
           // Update list for Category Management tab
           list.innerHTML = categories.length ? categories.map(cat => `
             <div class="flex items-center justify-between p-3 bg-bg rounded-xl border border-border">
-              <span class="font-bold text-text-main">${cat.name} <span class="text-text-muted text-xs">(${cat.siteId.name})</span></span>
+              <span class="font-bold text-text-main">${cat.name} <span class="text-text-muted text-xs">(${cat.siteId?.name || 'Unknown Site'})</span></span>
               <button type="button" data-delete-cat="${cat._id}" class="text-xs font-bold text-red-600">Delete</button>
             </div>`).join('') : '<p class="text-text-muted">No categories created.</p>';
           list.querySelectorAll('[data-delete-cat]').forEach(btn => btn.addEventListener('click', async () => { if (confirm('Delete this category?')) { await apiFetch('/api/admin/categories/' + btn.dataset.deleteCat, { method: 'DELETE' }); loadCategories(); } }));
           
           // Populate dropdown if site specified
           if (specificSiteSlug) {
-            categories.filter(c => c.siteId.slug === specificSiteSlug).forEach(cat => {
+            categories.filter(c => c.siteId?.slug === specificSiteSlug).forEach(cat => {
               const opt = document.createElement('option');
               opt.value = cat._id;
               opt.textContent = cat.name;
@@ -748,7 +797,8 @@
         try {
           const res = await apiFetch('/api/admin/bot-logs');
           if (!res.ok) throw new Error('Failed to load bot logs');
-          const logs = await res.json();
+          const data = await res.json();
+          const logs = Array.isArray(data) ? data : (data.logs || []);
           
           const total = logs.length;
           const google = logs.filter(l => l.botType === 'Googlebot').length;
