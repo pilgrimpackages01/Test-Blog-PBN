@@ -1,3 +1,6 @@
+// FIXED: frontend/functions/_seo-proxy.js
+// This version always passes the frontend hostname to the backend
+
 const DEFAULT_BACKEND_URL = 'https://omnicms-backend.vercel.app';
 
 export async function proxySeoRequest(request, env, pathname) {
@@ -13,6 +16,9 @@ export async function proxySeoRequest(request, env, pathname) {
   const hostname = url.hostname;
 
   const targetUrl = new URL(`${backendUrl}${targetPathname}`);
+  
+  // FIXED: ALWAYS pass hostname, don't check if it already exists
+  // This ensures backend knows which frontend is requesting the sitemap
   if (hostname) {
     targetUrl.searchParams.set('hostname', hostname);
   }
