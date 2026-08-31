@@ -590,20 +590,35 @@ app.post('/api/admin/sites', async (req, res) => {
     const { slug, name, domains = [], theme, seo } = req.body;
     if (!slug || !name) return res.status(400).json({ error: 'Slug and name are required' });
 
+    const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
     const normalizedDomains = [...new Set(domains
       .map((domain: string) => domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, ''))
       .filter(Boolean))];
     
+    // Remove these domains from all sites so no duplicate domain assignment conflicts occur
+    if (normalizedDomains.length > 0) {
+      await Site.updateMany(
+        {},
+        { $pull: { domains: { $in: normalizedDomains } } }
+      );
+    }
+
+    const existingSite = await Site.findOne({ slug: cleanSlug });
     const site = await Site.findOneAndUpdate(
-      { slug },
-      { name, domains: normalizedDomains, theme, seo },
+      { slug: cleanSlug },
+      { name: name.trim(), domains: normalizedDomains, theme, seo },
       { new: true, upsert: true }
     );
+
+    if (!existingSite) {
+      await Category.create({ siteId: site._id, name: 'General', slug: 'general' });
+    }
+
     memoryCache.clear();
     res.json(site);
-  } catch (err) {
+  } catch (err: any) {
     console.error("Error saving site:", err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(400).json({ error: err.message || 'Could not save site connection' });
   }
 });
 

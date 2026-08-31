@@ -375,6 +375,22 @@
         });
       }
 
+      const siteSlugInput = document.getElementById('siteSlug');
+      if (siteSlugInput) {
+        siteSlugInput.addEventListener('input', (e) => {
+          let val = e.target.value.trim().toLowerCase();
+          if (val.includes('.')) {
+            const domain = val;
+            const sub = domain.split('.')[0];
+            const domainsArea = document.getElementById('siteDomains');
+            if (domainsArea && !domainsArea.value.includes(domain)) {
+              domainsArea.value = domainsArea.value ? domainsArea.value + '\n' + domain : domain;
+            }
+            e.target.value = sub.replace(/[^a-z0-9-_]/g, '-');
+          }
+        });
+      }
+
       const siteForm = document.getElementById('siteForm');
       if (siteForm) {
         siteForm.addEventListener('submit', async (e) => {
@@ -390,7 +406,8 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ name, slug, domains })
             });
-            if (!response.ok) throw new Error('Save failed');
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Save failed');
             message.textContent = 'Site successfully connected & saved!';
             message.className = 'text-xs font-bold text-emerald-600 block mt-2';
             document.getElementById('editingSiteSlug').value = '';
@@ -401,7 +418,7 @@
             document.getElementById('siteCancelBtn').classList.add('hidden');
             loadSites();
           } catch (error) {
-            message.textContent = 'Could not save site connection.';
+            message.textContent = error.message || 'Could not save site connection.';
             message.className = 'text-xs font-bold text-red-600 block mt-2';
           }
         });
