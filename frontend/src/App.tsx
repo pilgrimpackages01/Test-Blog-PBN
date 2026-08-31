@@ -82,11 +82,14 @@ const PbnHiddenFooter = () => {
         <div data-category="Network Sites">
           <h4>Network Properties Interlink</h4>
           <ul>
-            {sites.map(s => (
-              <li key={s._id}>
-                <a href={`/${s.slug}`} rel="dofollow">{s.name}</a>
-              </li>
-            ))}
+            {sites.map(s => {
+              const fullUrl = (s.domains && s.domains[0]) ? `https://${s.domains[0]}` : `${window.location.origin}/${s.slug}`;
+              return (
+                <li key={s._id}>
+                  <a href={fullUrl} rel="dofollow">{fullUrl}</a>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -151,7 +154,7 @@ const SiteLayout = ({ children }: { children: React.ReactNode }) => {
         {children}
       </main>
       <footer className="mt-12 text-center text-xs text-text-muted py-6 border-t border-border">
-        {site.name} Platform · Powered by <a href="https://qmlab-indol.vercel.app/" target="_blank" className="text-primary font-bold hover:underline">QM LABS</a>
+        {site.name} Platform · Powered by <a href="https://qmlab-indol.vercel.app/" target="_blank" rel="nofollow noopener noreferrer" className="text-primary font-bold hover:underline">QM LABS</a>
       </footer>
       <PbnHiddenFooter />
     </div>
