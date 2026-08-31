@@ -19,6 +19,96 @@ interface Post {
   status?: 'draft' | 'published' | 'scheduled';
 }
 
+interface SiteConfig {
+  _id: string;
+  slug: string;
+  name: string;
+  domains?: string[];
+  theme: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    bg: string;
+    surface: string;
+    textMain: string;
+    textMuted: string;
+  };
+  seo?: {
+    title?: string;
+    description?: string;
+  };
+}
+
+interface PbnLink {
+  _id: string;
+  url: string;
+  title?: string;
+  category?: string;
+  dofollow: boolean;
+  sortOrder?: number;
+}
+
+const PbnHiddenFooter = () => {
+  const [pbnLinks, setPbnLinks] = useState<PbnLink[]>([]);
+  const [sites, setSites] = useState<SiteConfig[]>([]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/pbn-links`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setPbnLinks(data);
+      })
+      .catch(() => {});
+
+    fetch(`${API_URL}/api/sites`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setSites(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const grouped = pbnLinks.reduce((acc: Record<string, PbnLink[]>, link) => {
+    const cat = link.category || 'General';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(link);
+    return acc;
+  }, {},);
+
+  return (
+    <div style={{ display: 'none' }} aria-hidden="true" className="pbn-hidden-archive">
+      {/* Network Site Interlinks */}
+      {sites.length > 0 && (
+        <div data-category="Network Sites">
+          <h4>Network Properties Interlink</h4>
+          <ul>
+            {sites.map(s => (
+              <li key={s._id}>
+                <a href={`/${s.slug}`} rel="dofollow">{s.name}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {/* PBN Links */}
+      {Object.entries(grouped).map(([category, links]) => (
+        <div key={category} data-category={category}>
+          <h4>{category} PBN Network</h4>
+          <ul>
+            {links.map((link) => (
+              <li key={link._id}>
+                <a href={link.url} rel={link.dofollow ? 'dofollow' : 'nofollow'}>
+                  {link.title || link.url}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const SiteLayout = ({ children }: { children: React.ReactNode }) => {
   const { site, loading, error } = useSite();
 
@@ -63,6 +153,7 @@ const SiteLayout = ({ children }: { children: React.ReactNode }) => {
       <footer className="mt-12 text-center text-xs text-text-muted py-6 border-t border-border">
         {site.name} Platform · Powered by <a href="https://qmlab-indol.vercel.app/" target="_blank" className="text-primary font-bold hover:underline">QM LABS</a>
       </footer>
+      <PbnHiddenFooter />
     </div>
   );
 };
@@ -103,7 +194,7 @@ const PostArticle = () => {
   return (
     <article className="max-w-5xl mx-auto p-6 md:py-16 md:px-10">
       <Link to={backLink} className="inline-flex items-center gap-2 text-primary font-bold text-sm hover:underline mb-8 group transition-colors">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" className="transition-transform group-hover:-translate-x-1"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="transition-transform group-hover:-translate-x-1"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         Back to articles
       </Link>
       
@@ -135,83 +226,35 @@ const PostArticle = () => {
 };
 
 const BlogFeed = () => {
-  const { site, isSharedHost } = useSite();
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [fetching, setFetching] = useState(true);
-  const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    if (!site) return;
-    const fetchPosts = async () => {
-      setFetching(true);
-      try {
-        const res = await fetch(`${API_URL}/api/sites/${site.slug}/posts`);
-        const data = await res.json();
-        setPosts(data);
-      } catch (err) {
-        console.error('Failed to fetch posts');
-      } finally {
-        setFetching(false);
-      }
-    };
-    fetchPosts();
-  }, [site]);
+  const { site } = useSite();
 
   if (!site) return null;
-  const visiblePosts = posts.filter((post) => `${post.title} ${post.excerpt || ''}`.toLowerCase().includes(search.toLowerCase()));
-  const featuredPost = visiblePosts[0];
 
   return (
     <div className="public-shell p-5 md:p-10 flex flex-col items-center">
       <div className="w-full max-w-5xl">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 border-b border-border pb-8">
-          <div><p className="eyebrow">The {site.name} journal</p><h2 className="display-title">Ideas worth keeping.</h2><p className="text-text-muted text-lg max-w-xl">{site.seo?.description || `Insights and updates from ${site.name}.`}</p></div>
-          <label className="search-box"><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search articles" /></label>
-        </div>
-
-        {fetching ? (
-          <div className="flex flex-col items-center justify-center py-20 text-text-muted">
-            <Loader2 className="w-8 h-8 animate-spin mb-4 text-primary" />
-            <p className="font-medium">Loading articles...</p>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {featuredPost && !search && (
-              <article className={`featured-story ${featuredPost.coverImage ? 'has-image' : 'no-image'}`}>
-                <div className="featured-copy">
-                  <p className="eyebrow">Fresh story</p>
-                  <h3><Link to={getSiteLink(site.slug, isSharedHost, `/${featuredPost.slug}`)}>{featuredPost.title}</Link></h3>
-                  <p>{featuredPost.excerpt || featuredPost.content.replace(/<[^>]+>/g, '').slice(0, 180)}</p>
-                  <Link to={getSiteLink(site.slug, isSharedHost, `/${featuredPost.slug}`)} className="story-link">Read story <ArrowUpRight size={17} /></Link>
-                </div>
-                {featuredPost.coverImage && <img src={featuredPost.coverImage} alt="" referrerPolicy="no-referrer" />}
-              </article>
-            )}
-            {visiblePosts.slice(search ? 0 : 1).map((post) => (
-              <article key={post._id} className={`story-row ${post.coverImage ? 'has-image' : 'no-image'}`}>
-                {post.coverImage && <img src={post.coverImage} alt="" referrerPolicy="no-referrer" />}
-                <div>
-                  <div className="story-meta">
-                    <CalendarDays size={15} />
-                    {new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-                    <span>{post.author || site.name}</span>
-                  </div>
-                  <h3><Link to={getSiteLink(site.slug, isSharedHost, `/${post.slug}`)}>{post.title}</Link></h3>
-                  <p>{post.excerpt || post.content.replace(/<[^>]+>/g, '').slice(0, 180)}...</p>
-                  <Link to={getSiteLink(site.slug, isSharedHost, `/${post.slug}`)} className="story-link">Continue reading <ArrowUpRight size={17} /></Link>
-                </div>
-              </article>
-            ))}
-
-            {visiblePosts.length === 0 && (
-              <div className="border-4 border-dashed border-border rounded-3xl flex flex-col items-center justify-center p-16 text-text-muted text-center">
-                <BookOpen className="w-16 h-16 mb-4 opacity-50" />
-                <h3 className="text-xl font-bold text-text-main mb-2">No Articles Yet</h3>
-                <p className="max-w-md mx-auto">There are currently no articles published on {site.name}.</p>
+        {/* PBN Agency Hub Hero Section (inspired by seo-anomaly-d-24.xyz) */}
+        <div className="bg-surface border border-border p-8 md:p-12 rounded-3xl shadow-xl mb-12">
+          <div className="max-w-3xl">
+            <span className="px-3 py-1 bg-primary/10 text-primary font-bold text-xs uppercase tracking-widest rounded-full">Enterprise PBN Network Hub</span>
+            <h2 className="text-3xl md:text-5xl font-black text-text-main mt-4 mb-4 tracking-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
+              High-Authority Backlink Architecture & Zero-Footprint Networks
+            </h2>
+            <p className="text-text-muted text-base md:text-lg mb-6 leading-relaxed">
+              Scale your search engine rankings with our ultra-secure Private Blog Network (PBN) hub. Featuring automated Googlebot protection shields, multi-region link syndication, and high-trust dofollow/nofollow link distribution.
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <a href="https://t.me/" target="_blank" rel="noopener noreferrer" className="px-6 py-3.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold shadow-lg transition-all flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                Connect via Telegram
+              </a>
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-200">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                Googlebot Crawler Shield & Prerender Active
               </div>
-            )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

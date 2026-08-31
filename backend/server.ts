@@ -172,10 +172,21 @@ const BotLogSchema = new mongoose.Schema({
   siteSlug: { type: String, default: '' },
 }, { timestamps: true });
 
+const PbnLinkSchema = new mongoose.Schema({
+  url: { type: String, required: true, trim: true },
+  title: { type: String, trim: true, default: '' },
+  category: { type: String, trim: true, default: 'General', index: true },
+  dofollow: { type: Boolean, default: true },
+  sortOrder: { type: Number, default: 0 }
+}, { timestamps: true });
+
+PbnLinkSchema.index({ category: 1, sortOrder: 1, createdAt: -1 });
+
 const Site = mongoose.model('Site', SiteSchema);
 const Category = mongoose.model('Category', CategorySchema);
 const Post = mongoose.model('Post', PostSchema);
 const BotLog = mongoose.model('BotLog', BotLogSchema);
+const PbnLink = mongoose.models.PbnLink || mongoose.model('PbnLink', PbnLinkSchema);
 
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
   if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) return res.status(503).json({ error: 'JWT_SECRET is not configured' });
@@ -434,6 +445,16 @@ app.get('/api/sites/resolve', async (req, res) => {
     const site = await Site.findOne({ domains: hostname });
     if (!site) return res.status(404).json({ error: 'No site is connected to this domain' });
     res.json(site);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get All Sites
+app.get('/api/sites', async (req, res) => {
+  try {
+    const sites = await Site.find().sort({ createdAt: 1 });
+    res.json(sites);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -741,6 +762,108 @@ app.get('/api/admin/bot-logs', requireAdmin, async (req, res) => {
     res.json(logs);
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve bot logs' });
+  }
+});
+
+// ------------------------------------------------------------------
+// PBN Link Management API
+// ------------------------------------------------------------------
+app.get('/api/pbn-links', async (req, res) => {
+  try {
+    const query: any = {};
+    if (req.query.category) {
+      query.category = req.query.category;
+    }
+    const links = await PbnLink.find(query).sort({ category: 1, sortOrder: 1, createdAt: -1 });
+    res.json(links);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/admin/pbn-links', requireAdmin, async (req, res) => {
+  try {
+    const links = await PbnLink.find().sort({ category: 1, sortOrder: 1, createdAt: -1 });
+    res.json(links);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/admin/pbn-links', requireAdmin, async (req, res) => {
+  try {
+    const { url, title, category, dofollow, sortOrder } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL is required' });
+    const link = await PbnLink.create({
+      url: url.trim(),
+      title: title ? title.trim() : '',
+      category: category ? category.trim() : 'General',
+      dofollow: dofollow !== undefined ? Boolean(dofollow) : true,
+      sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0
+    });
+    res.status(201).json(link);
+  } catch (err) {
+    res.status(500).json({ error: 'Could not create PBN link' });
+  }
+});
+
+app.put('/api/admin/pbn-links/:id', requireAdmin, async (req, res) => {
+  try {
+    const { url, title, category, dofollow, sortOrder } = req.body;
+    const link = await PbnLink.findByIdAndUpdate(
+      req.params.id,
+      {
+        ...(url && { url: url.trim() }),
+        ...(title !== undefined && { title: title.trim() }),
+        ...(category && { category: category.trim() }),
+        ...(dofollow !== undefined && { dofollow: Boolean(dofollow) }),
+        ...(sortOrder !== undefined && { sortOrder: Number(sortOrder) })
+      },
+      { new: true }
+    );
+    if (!link) return res.status(404).json({ error: 'Link not found' });
+    res.json(link);
+  } catch (err) {
+    res.status(500).json({ error: 'Could not update PBN link' });
+  }
+});
+
+app.delete('/api/admin/pbn-links/:id', requireAdmin, async (req, res) => {
+  try {
+    const link = await PbnLink.findByIdAndDelete(req.params.id);
+    if (!link) return res.status(404).json({ error: 'Link not found' });
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ error: 'Could not delete PBN link' });
+  }
+});
+
+app.post('/api/admin/pbn-links/import', requireAdmin, async (req, res) => {
+  try {
+    const { rawText, category: defaultCategory = 'General', dofollow: defaultDofollow = true } = req.body;
+    if (!rawText || typeof rawText !== 'string') {
+      return res.status(400).json({ error: 'rawText string is required' });
+    }
+    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+    let importedCount = 0;
+    for (const line of lines) {
+      const parts = line.split(',').map(p => p.trim());
+      const url = parts[0];
+      if (!url) continue;
+      const title = parts[1] || '';
+      const category = parts[2] || defaultCategory;
+      const dofollow = parts[3] !== undefined ? parts[3].toLowerCase() !== 'false' && parts[3].toLowerCase() !== '0' && parts[3].toLowerCase() !== 'nofollow' : defaultDofollow;
+      
+      await PbnLink.findOneAndUpdate(
+        { url },
+        { title, category, dofollow },
+        { upsert: true, new: true }
+      );
+      importedCount++;
+    }
+    res.json({ success: true, importedCount });
+  } catch (err) {
+    res.status(500).json({ error: 'Bulk import failed' });
   }
 });
 
