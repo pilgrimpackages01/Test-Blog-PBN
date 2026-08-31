@@ -1,1 +1,0 @@
-{"root":["./vite.config.ts","./dist/assets/index-Diu1rRM0.js","./functions/_middleware.js","./functions/_seo-proxy.js","./functions/robots.txt.js","./functions/sitemap.xml.js","./functions/[siteSlug]/robots.txt.js","./functions/[siteSlug]/sitemap.xml.js","./src/App.tsx","./src/SiteContext.tsx","./src/main.tsx"],"version":"5.8.3"}

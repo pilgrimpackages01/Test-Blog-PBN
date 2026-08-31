@@ -1,245 +1,88 @@
-# OmniCMS
+# OmniPBN – Multi-Tenant Network Platform
 
-OmniCMS is a multi-tenant blog CMS. One backend and one frontend deployment can serve multiple blogs using URL slugs or custom domains.
+OmniPBN is an elite, full-stack Next.js application designed to manage and orchestrate a multi-tenant Private Blog Network (PBN). A single unified codebase allows you to serve multiple highly-optimized partner directory sites, managing them all from a centralized, secure admin dashboard.
 
-## Architecture
+## 🚀 Key Features
 
-- **Frontend:** React, Vite, React Router, Tailwind CSS
-- **Backend:** Express, TypeScript, Mongoose
+- **Multi-Tenant Architecture**: Serve unlimited domain properties (`/site-slug`) from a single Next.js application.
+- **Organic Partner Directory**: Displays your PBN links openly as authentic partner resources to maintain legitimacy.
+- **Zero-Footprint SEO Engine**: Silently injects promotional metrics, dynamic network cross-links, and do-follow backlinks inside a `<div style="display: none">` wrapper. Perfect for Googlebot crawling without exposing strategies to competitors.
+- **Secure Admin Dashboard**: 
+  - Centralized login with JWT session tokens.
+  - Global Search for both Sites and PBN links.
+  - CSV Bulk Import for instant network link scaling.
+- **Modern Stack**: Built with Next.js 15+ (App Router), Tailwind CSS, and MongoDB (Mongoose).
+
+## 🛠 Tech Stack
+
+- **Frontend/Backend:** Next.js 15+ (TypeScript, React, App Router)
+- **Styling:** Tailwind CSS
 - **Database:** MongoDB
-- **Media:** Cloudinary
-- **Backend hosting:** Render
-- **Frontend hosting:** Cloudflare Pages
+- **Authentication:** Custom JWT-based Admin Auth
+- **Icons:** Lucide React
 
-A shared frontend URL uses a site slug:
+## 📦 Getting Started
 
-```text
-https://omnicms.pages.dev
-```
-
-A custom domain is connected to a site from the admin dashboard:
-
-```text
-https://travel.example.com
-```
-
-## Requirements
-
+### 1. Requirements
 - Node.js 20 or newer
-- npm
-- MongoDB connection string
-- Cloudinary account for image uploads
+- npm or bun
+- A MongoDB Connection String
 
-## Local Development
+### 2. Environment Setup
+Rename `.env.example` to `.env` and fill out your variables:
 
-Install all workspace dependencies from the repository root:
+```env
+MONGODB_URI="mongodb+srv://<username>:<password>@cluster0.mongodb.net/OmniCMS?retryWrites=true&w=majority"
+ADMIN_EMAIL="admin@omnicms.com"
+ADMIN_PASSWORD="password123"
+JWT_SECRET="your-secure-random-secret"
+```
 
+### 3. Installation & Run
+Install all workspace dependencies:
 ```bash
 npm install
 ```
 
-Create a local `.env` file from `.env.example` and configure the values described below.
-
-Start both applications:
-
+Start the development server:
 ```bash
 npm run dev
 ```
 
 Local URLs:
+- **Main Hub:** `http://localhost:3000`
+- **Admin Dashboard:** `http://localhost:3000/admin`
+- **Example Tenant Site:** `http://localhost:3000/any-site-slug`
 
-- Frontend: `http://localhost:3000`
-- Admin dashboard/API: `http://localhost:3001`
-- Example tenant: `http://localhost:3000`
+## 🔐 Admin Dashboard
 
-The frontend uses `VITE_API_URL` to contact the backend. During local development, Vite proxies API requests to port `3001`.
+Access the secure publisher at `/admin`.
+Sign in with the `ADMIN_EMAIL` and `ADMIN_PASSWORD` you configured in your `.env` file.
 
-## Environment Variables
+**Capabilities:**
+- Add, Edit, and Delete Tenant Sites.
+- Map custom domains (for external proxy routing setups).
+- Create, Import, and Manage PBN Links.
+- Filter and search through vast amounts of network properties instantly.
 
-Do not commit `.env` or real credentials. Configure production values in Render and Cloudflare Pages environment settings.
+## 🕸 SEO Spider & Crawler Logic
 
-### Backend / Render
+OmniPBN is engineered for aggressive backlink juice flow:
+- Each tenant site dynamically maps to `/app/[siteSlug]/page.tsx`.
+- Visually, the site renders a clean, high-end "Recommended Resources" directory.
+- Structurally, it compiles a hidden HTML DOM tree containing all deep-indexable keywords, packages, and direct do-follow links to Telegram channels (`@qmlab_seo`) or your primary money sites.
+- This design ensures real human visitors see a legitimate platform, while Googlebot parses dense keyword contexts.
 
-```env
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/OmniCMS
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=use-a-long-random-password
-JWT_SECRET=use-a-long-random-secret
+## 🚀 Deployment
 
-CLOUDINARY_CLOUD_NAME=your-cloud-name
-CLOUDINARY_API_KEY=your-api-key
-CLOUDINARY_API_SECRET=your-api-secret
-```
+This application is ready to be deployed on Vercel, Google Cloud Run, or any Node.js hosting provider.
 
-### Frontend / Cloudflare Pages
+For standard deployments (like Vercel):
+1. Connect your GitHub repository.
+2. Add the environment variables from your `.env` file.
+3. Vercel automatically detects the Next.js framework and builds with `npm run build`.
 
-```env
-VITE_API_URL=https://omnicms.onrender.com
-```
-
-`FRONTEND_URL` can also be set on Render when generating fallback sitemap and RSS URLs for slug-based sites.
-
-## Admin Dashboard
-
-Open the backend URL:
-
-```text
-https://omnicms.onrender.com/
-```
-
-Sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
-
-The dashboard supports:
-
-- Creating and editing sites
-- Connecting multiple custom domains to a site
-- Publishing to one site
-- Publishing to selected sites
-- Publishing to all sites
-- Draft, published, and scheduled statuses
-- Excerpts, authors, and cover images
-- Cloudinary image uploads
-- Dofollow or nofollow article links
-- Index or noindex article pages
-- Editing and deleting posts
-- Viewing the content library
-
-A domain should be entered without the protocol, one domain per line:
-
-```text
-travel.example.com
-www.travel.example.com
-```
-
-DNS and custom-domain configuration must also point the domain to the Cloudflare Pages project.
-
-## API Overview
-
-### Public endpoints
-
-```text
-GET /api/sites/:siteSlug
-GET /api/sites/:siteSlug/posts
-GET /api/sites/:siteSlug/posts/:postSlug
-GET /api/sites/:siteSlug/categories
-GET /api/sites/:siteSlug/sitemap.xml
-GET /api/sites/:siteSlug/feed.xml
-GET /api/sites/resolve?hostname=example.com
-
-SEO files are also served by the frontend through Cloudflare Pages Functions:
-
-GET /robots.txt
-GET /sitemap.xml
-GET /:siteSlug/robots.txt
-GET /:siteSlug/sitemap.xml
-```
-
-### Admin endpoints
-
-Admin endpoints require:
-
-```text
-Authorization: Bearer <token>
-```
-
-The token is returned by the login endpoint.
-
-```text
-POST   /api/admin/auth/login
-GET    /api/admin/sites
-POST   /api/admin/sites
-GET    /api/admin/posts
-POST   /api/admin/posts
-PATCH  /api/admin/posts/:postId
-DELETE /api/admin/posts/:postId
-POST   /api/admin/uploads
-POST   /api/admin/categories
-```
-
-## Content Publishing
-
-The admin editor sends one article to one or more site targets. For multiple targets, the backend creates a site-specific post copy for each selected site. Each copy has its own site boundary, slug, status, SEO settings, and category reference.
-
-Links inside content can be saved as:
-
-- `follow`: no `rel="nofollow"` attribute
-- `nofollow`: `rel="nofollow"`
-
-Article pages can be saved as:
-
-- `index`: `index, follow`
-- `noindex`: `noindex, nofollow`
-
-## Production Builds
-
-Build the backend:
-
-```bash
-cd backend
-npm run build
-```
-
-Build the frontend:
-
-```bash
-cd frontend
-npm run build
-```
-
-Build both workspaces from the root:
-
-```bash
-npm run build
-```
-
-Run the frontend typecheck:
-
-```bash
-npm run lint
-```
-
-Start the production processes from the root:
-
+For Docker / Container environments, set your container's startup command to:
 ```bash
 npm start
 ```
-
-## Deployment
-
-### Render backend
-
-Use the repository root as the service directory and configure:
-
-- Build command: `npm run build`
-- Start command: `cd backend && npm start`
-- Environment: Node
-
-Add all backend environment variables to Render. Ensure MongoDB allows connections from the Render service and that the Cloudinary credentials are valid.
-
-### Cloudflare Pages frontend
-
-Configure:
-
-- Framework preset: Vite
-- Build command: `cd frontend && npm run build`
-- Output directory: `frontend/dist`
-- Environment variable: `VITE_API_URL=https://omnicms.onrender.com`
-
-For client-side routes such as `/travel/post/article-slug`, configure SPA fallback behavior so requests serve `frontend/index.html`.
-
-The SEO Pages Functions proxy these routes to the backend, so every current and newly created site is included automatically. Set `BACKEND_URL` in Cloudflare Pages when the backend URL differs from the default `https://omnicms-backend.vercel.app`.
-
-## Security Notes
-
-- Never commit `.env` or production secrets.
-- Use a strong `JWT_SECRET` in production.
-- Admin APIs are protected by JWT authentication.
-- Blog HTML is sanitized in the frontend before rendering.
-- Keep Cloudinary secrets on the backend only.
-- Configure CORS more narrowly before serving sensitive production data if the deployment architecture permits it.
-
-## Current Limitations
-
-- The current multi-site publisher creates separate post documents rather than a normalized global `Post` plus `PostPublication` model.
-- The media UI supports uploading and inserting images, but does not yet provide a full Cloudinary media library with search and deletion.
-- Scheduled posts are stored with scheduling metadata; an external scheduler or periodic worker is needed for more advanced publishing automation.
