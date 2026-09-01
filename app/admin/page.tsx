@@ -387,7 +387,7 @@ export default function AdminDashboard() {
                     <button onClick={loadSites} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl border border-slate-200 text-xs font-bold cursor-pointer">Refresh</button>
                   </div>
                 </div>
-                <div className="overflow-x-auto overflow-y-auto max-h-[600px] rounded-2xl border border-slate-200">
+                <div className="overflow-x-auto overflow-y-auto max-h-[300px] rounded-2xl border border-slate-200">
                   <table className="w-full text-left text-sm border-collapse">
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase border-b border-slate-200 shadow-sm">
