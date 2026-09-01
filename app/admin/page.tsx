@@ -319,7 +319,7 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab('pbn')}
               className={`px-6 py-3 border-b-2 font-bold text-sm cursor-pointer transition-all ${activeTab === 'pbn' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
             >
-              PBN Links Management
+              Client Links Management
             </button>
             <button
               onClick={() => setActiveTab('settings')}
@@ -387,24 +387,24 @@ export default function AdminDashboard() {
                     <button onClick={loadSites} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl border border-slate-200 text-xs font-bold cursor-pointer">Refresh</button>
                   </div>
                 </div>
-                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <div className="overflow-x-auto overflow-y-auto max-h-[600px] rounded-2xl border border-slate-200">
                   <table className="w-full text-left text-sm border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase border-b border-slate-200">
-                        <th className="p-4">Site Name</th>
-                        <th className="p-4">Slug / URL</th>
-                        <th className="p-4">Domains</th>
-                        <th className="p-4 text-right">Actions</th>
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase border-b border-slate-200 shadow-sm">
+                        <th className="p-4 bg-slate-50">Site Name</th>
+                        <th className="p-4 bg-slate-50">Slug / URL</th>
+                        <th className="p-4 bg-slate-50">Domains</th>
+                        <th className="p-4 bg-slate-50 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 text-slate-900">
                       {sites.filter(s => s.name.toLowerCase().includes(sitesSearch.toLowerCase()) || s.slug.toLowerCase().includes(sitesSearch.toLowerCase())).map(site => (
                         <tr key={site._id} className="hover:bg-slate-50">
                           <td className="p-4 font-bold">{site.name}</td>
-                          <td className="p-4 font-mono text-xs text-indigo-600 max-w-xs truncate" title={typeof window !== 'undefined' ? `${window.location.origin}/${site.slug}` : `/${site.slug}`}>
-                            <Link href={`/${site.slug}`} target="_blank" className="hover:underline">
-                              {typeof window !== 'undefined' ? `${window.location.origin}/${site.slug}` : `/${site.slug}`}
-                            </Link>
+                          <td className="p-4 font-mono text-xs text-indigo-600 max-w-xs truncate" title={site.domains && site.domains.length > 0 ? `https://${site.domains[0]}` : (typeof window !== 'undefined' ? `${window.location.origin}/${site.slug}` : `/${site.slug}`)}>
+                            <a href={site.domains && site.domains.length > 0 ? `https://${site.domains[0]}` : `/${site.slug}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                              {site.domains && site.domains.length > 0 ? `https://${site.domains[0]}` : (typeof window !== 'undefined' ? `${window.location.origin}/${site.slug}` : `/${site.slug}`)}
+                            </a>
                           </td>
                           <td className="p-4 font-mono text-xs text-slate-500">
                             {site.domains?.join(', ') || 'None'}
@@ -427,7 +427,7 @@ export default function AdminDashboard() {
           {activeTab === 'pbn' && (
             <div className="grid lg:grid-cols-3 gap-8">
               <div className="bg-white border border-slate-200 p-6 rounded-3xl shadow-xl h-fit">
-                <h3 className="text-xl font-black text-slate-900 mb-1">{pbnId ? 'Edit PBN Link' : 'Add PBN Link'}</h3>
+                <h3 className="text-xl font-black text-slate-900 mb-1">{pbnId ? 'Edit Link' : 'Add Link'}</h3>
                 <p className="text-slate-500 text-xs mb-6">Create or update private network backlink.</p>
                 <form onSubmit={handleSavePbn} className="space-y-4">
                   <div className="space-y-1">
@@ -479,7 +479,7 @@ export default function AdminDashboard() {
 
               <div className="lg:col-span-2 bg-white border border-slate-200 p-6 rounded-3xl shadow-xl flex flex-col space-y-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-black text-slate-900">PBN Links List</h3>
+                  <h3 className="text-xl font-black text-slate-900">Client Links List</h3>
                   <div className="flex items-center gap-3">
                     <input
                       type="text"
@@ -507,14 +507,14 @@ export default function AdminDashboard() {
                   </form>
                 </details>
 
-                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <div className="overflow-x-auto overflow-y-auto max-h-[600px] rounded-2xl border border-slate-200">
                   <table className="w-full text-left text-sm border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase border-b border-slate-200">
-                        <th className="p-4">Anchor / Title</th>
-                        <th className="p-4">URL</th>
-                        <th className="p-4">Type</th>
-                        <th className="p-4 text-right">Actions</th>
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase border-b border-slate-200 shadow-sm">
+                        <th className="p-4 bg-slate-50">Anchor / Title</th>
+                        <th className="p-4 bg-slate-50">URL</th>
+                        <th className="p-4 bg-slate-50">Type</th>
+                        <th className="p-4 bg-slate-50 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 text-slate-900">
