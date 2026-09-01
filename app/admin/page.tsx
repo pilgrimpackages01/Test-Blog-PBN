@@ -484,7 +484,7 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              <div className="lg:col-span-2 bg-white border border-slate-200 p-6 rounded-3xl shadow-xl flex flex-col space-y-6">
+              <div className="lg:col-span-2 bg-white border border-slate-200 p-6 rounded-3xl shadow-xl flex flex-col space-y-1">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-black text-slate-900">Client Links List</h3>
                   <div className="flex items-center gap-3">
