@@ -26,8 +26,13 @@ for i in {1..100}; do
   project_name="omnicms-$(printf '%03d' "$i")"
   printf 'Deploying %s...\n' "$project_name"
 
+  if ! npx --yes vercel project add "$project_name"; then
+    printf 'Using existing project %s.\n' "$project_name"
+  fi
+  npx --yes vercel project update "$project_name" --framework nextjs --yes
+
   npx --yes vercel deploy --prod --yes --force \
-    --name "$project_name" \
+    --project "$project_name" \
     --build-env MONGODB_URI="$MONGODB_URI" \
     --build-env ADMIN_EMAIL="$ADMIN_EMAIL" \
     --build-env ADMIN_PASSWORD="$ADMIN_PASSWORD" \

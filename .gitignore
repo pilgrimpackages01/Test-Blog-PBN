@@ -8,3 +8,5 @@ coverage/
 !.env.example
 .vercel
 publish-articles.mjs
+next.config.js
+.next

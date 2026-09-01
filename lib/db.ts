@@ -85,8 +85,6 @@ async function seedDefaultSites() {
   if (count === 0) {
     const defaultSites = [
       { slug: 'travel', name: 'Travel', domains: ['omnicms.pages.dev'] },
-      { slug: 'package', name: 'Package', domains: ['omnicms1.pages.dev'] },
-      { slug: 'design', name: 'Design', domains: ['omnicms2.pages.dev'] }
     ];
     for (const siteData of defaultSites) {
       await Site.create(siteData);
@@ -107,6 +105,10 @@ export async function connectDB() {
       return cachedConnection;
     } catch (err: any) {
       console.warn('⚠️ MONGODB_URI connection failed, falling back to Memory Server:', err.message);
+      if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+      }
+      cachedConnection = null;
     }
   }
 
