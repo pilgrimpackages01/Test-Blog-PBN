@@ -305,7 +305,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center" style={{ padding: '20px' }}>
         <div className="w-full max-w-6xl space-y-8">
           {/* Tab Bar */}
           <div className="flex border-b border-slate-200 gap-1 bg-white px-6 pt-4 rounded-2xl border border-slate-200 shadow-sm">
@@ -514,7 +514,7 @@ export default function AdminDashboard() {
                   </form>
                 </details>
 
-                <div className="overflow-x-auto overflow-y-auto max-h-[600px] rounded-2xl border border-slate-200">
+                <div className="overflow-x-auto overflow-y-auto max-h-[300px] rounded-2xl border border-slate-200">
                   <table className="w-full text-left text-sm border-collapse">
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase border-b border-slate-200 shadow-sm">
