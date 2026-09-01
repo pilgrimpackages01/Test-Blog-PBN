@@ -410,6 +410,13 @@ export default function AdminDashboard() {
                             {site.domains?.join(', ') || 'None'}
                           </td>
                           <td className="p-4 text-right space-x-2">
+                            <button onClick={() => {
+                              setEditingSiteSlug(site.slug);
+                              setSiteName(site.name);
+                              setSiteSlug(site.slug);
+                              setSiteDomains(site.domains?.join(', ') || '');
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }} className="px-3 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-xs font-bold cursor-pointer">Edit</button>
                             <button onClick={() => handleDeleteSite(site.slug)} className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold cursor-pointer">Delete</button>
                           </td>
                         </tr>
@@ -524,6 +531,14 @@ export default function AdminDashboard() {
                           <td className="p-4 font-mono text-xs text-slate-500 max-w-xs truncate"><a href={link.url} target="_blank" className="hover:underline text-indigo-600">{link.url}</a></td>
                           <td className="p-4"><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${link.dofollow ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{link.dofollow ? 'Dofollow' : 'Nofollow'}</span></td>
                           <td className="p-4 text-right space-x-2">
+                            <button onClick={() => {
+                              setPbnId(link._id);
+                              setPbnUrl(link.url);
+                              setPbnTitle(link.title || '');
+                              setPbnDofollow(link.dofollow !== false);
+                              setPbnSortOrder(link.sortOrder || 0);
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }} className="px-3 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-xs font-bold cursor-pointer">Edit</button>
                             <button onClick={() => handleDeletePbn(link._id)} className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold cursor-pointer">Delete</button>
                           </td>
                         </tr>
