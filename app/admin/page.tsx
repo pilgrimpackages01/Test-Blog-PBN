@@ -305,8 +305,8 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center" style={{ padding: '20px' }}>
-        <div className="w-full max-w-6xl space-y-8">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center">
+        <div className="w-full max-w-screen-2xl space-y-8">
           {/* Tab Bar */}
           <div className="flex border-b border-slate-200 gap-1 bg-white px-6 pt-4 rounded-2xl border border-slate-200 shadow-sm">
             <button
